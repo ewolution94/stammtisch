@@ -26,7 +26,7 @@
 //                                time in play, by anyone, within the deadline (lower levels implied)
 //   { type: 'play', card }
 
-import { RuleError, SUITS, augen, dealPackets, isCard, makeDeck, nextSeat, parseCard, shuffled, sortBy, sumAugen, takeCard } from '../core/cards.mjs';
+import { RuleError, dealPackets, isCard, makeDeck, nextSeat, parseCard, shuffled, sortBy, sumAugen, takeCard } from '../core/cards.mjs';
 import { legalFollow, trickWinner } from '../core/tricks.mjs';
 
 /** @typedef {import('../core/tricks.mjs').Ranking} Ranking */
@@ -34,6 +34,8 @@ import { legalFollow, trickWinner } from '../core/tricks.mjs';
 
 export const id = 'doppelkopf';
 export const PLAYERS = Object.freeze({ min: 4, max: 4 });
+/** Four play; from five the dealer sits out (and with six the seat before them too). */
+export const TABLE = Object.freeze({ min: 4, max: 6 });
 
 /**
  * The solos (DDV §2.3.3): Damen (Ober), Buben (Unter), the four suits (Karo is the normal game's
@@ -793,3 +795,61 @@ export function view(state, seat) {
     result: state.result,
   };
 }
+
+// ---- the match (server/core/match.mjs): the duty solo and Bock rounds --------------------------------
+
+/**
+ * Doppelkopf's match rules (house rules, off by default):
+ * - duty: everyone owes one solo a match (DDV §4.2: the Pflichtsolo). It beats a lust solo, its
+ *   soloist leads, and it doesn't use up a deal: the same dealer deals again. Whoever still owes one
+ *   once the deals are played must play it (Vorführung), the one nearest the dealer's left first; then
+ *   the next player deals.
+ * - bock: a deal that ends 120 : 120, or where both Re and Kontra were said, brings a Bock round: the
+ *   next deals, one per seat at the table, count double. More of them queue up.
+ */
+export const match = {
+  /** @param {import('../core/match.mjs').Match} m */
+  start(m) {
+    m.extra.owes = Array(m.table).fill(Boolean(m.rules.duty));
+    m.extra.bock = 0;
+  },
+  /** @param {import('../core/match.mjs').Match} m  @param {number[]} seats */
+  dealArgs(m, seats) {
+    if (!m.rules.duty) return {};
+    const owes = m.extra.owes;
+    if (m.counted < m.rounds * m.table) return { owes: seats.map((s) => owes[s]) };
+    const order = Array.from({ length: m.table }, (_, i) => nextSeat(m.dealer, m.table, 1 + i));
+    const who = order.find((s) => owes[s]);
+    if (who === undefined) return {};
+    // The forced player plays even where they'd sit out: then the four seats that end with them.
+    const active = seats.includes(who) ? seats : [3, 2, 1, 0].map((k) => nextSeat(who, m.table, -k));
+    return { seats: active, owes: active.map((s) => owes[s]), forced: active.indexOf(who) };
+  },
+  /** @param {import('../core/match.mjs').Match} m  @param {import('../core/match.mjs').DealRecord} record */
+  after(m, record) {
+    const r = record.result;
+    if (r.void) return { counts: false, sameDealer: true };
+    let counts = true;
+    let sameDealer = false;
+    if (m.rules.duty && r.duty) {
+      m.extra.owes[record.seats[/** @type {number} */ (r.contract.soloist)]] = false;
+      counts = false;
+      sameDealer = m.current?.forced === null;
+    }
+    if (m.rules.bock) {
+      if (m.extra.bock > 0) m.extra.bock -= 1;
+      const tie = r.augen.re === 120 && r.augen.kontra === 120;
+      const both = r.calls.re >= 0 && r.calls.kontra >= 0;
+      m.extra.bock += ((tie ? 1 : 0) + (both ? 1 : 0)) * m.table;
+    }
+    return { counts, sameDealer };
+  },
+  /** A Bock deal counts double. @param {import('../core/match.mjs').Match} m */
+  multiplier(m) {
+    return m.rules.bock && m.extra.bock > 0 ? 2 : 1;
+  },
+  /** Not over while anyone owes a duty solo. @param {import('../core/match.mjs').Match} m */
+  over(m) {
+    return !m.rules.duty || !m.extra.owes.some(Boolean);
+  },
+};

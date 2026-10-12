@@ -13,6 +13,9 @@ Grün, Herz, Schellen). Local only for now; the plan is `development/plans/card-
   table, `view()` is what one seat may see (never another hand). No I/O, no clock, no randomness of
   its own: a `randomInt` comes in, so tests deal fixed hands or pass a seeded one.
 - **`server/bots/`**: a bot per game, deterministic, looking only at its own seat's view.
+- **`server/core/match.mjs`**: deals in a row at one table: whose deal it is, who sits out (more
+  people than the game takes: the dealer first), the running totals. A game adds its own match rules
+  through hooks (Doppelkopf: the duty solo and Bock rounds).
 
 Card ids name the card the French way, whatever deck the page draws: `h-10`, `c-Q`, `d-A` (suits
 c Kreuz/Eichel, s Pik/Grün, h Herz, d Karo/Schellen; J Bube/Unter, Q Dame/Ober, A Ass/Daus).
@@ -60,8 +63,10 @@ Four at the table, 48 cards (twice 9 to Ass), 12 each. The default is the DDV's 
 - **House rules,** off by default: without the nines (40 cards, 10 each); the second Dulle beats
   the first (always, or except in the last trick); Schweinchen (both ♦A in one hand rank on top);
   poverty (three trumps or fewer go across to whoever takes them, who gives three back; nobody takes:
-  deal again); throwing in (five nines or five kings); the compulsory solo and Bock rounds (kept by
-  the match).
+  deal again); throwing in (five nines or five kings); the duty solo (everyone owes one solo a match;
+  it doesn't use up a deal; whoever still owes one at the end is forced to play it); Bock rounds (after
+  120 : 120, or Re and Kontra both said, the next round of deals counts double).
+- **At the table:** four play; from five the dealer sits out (with six, the seat before them too).
 
 ## Commands
 
