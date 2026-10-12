@@ -1,21 +1,42 @@
 # Stammtisch
 
-The classic card games for the afternoon meeting, at one table: Mau-Mau, Doppelkopf and Skat so
-far, Durak next. Unbranded, played on phones beside the call, with a German deck you handle (Eichel,
-Grün, Herz, Schellen). Local only for now; the plan is `development/plans/card-games.md`.
+The classic card games for the afternoon meeting, at one table: Mau-Mau, Doppelkopf, Skat and
+Durak. Unbranded, played on phones beside the call, with a German deck you handle (Eichel, Grün,
+Herz, Schellen; the Unter, Ober and König as paper cuts, the numbers in letterpress). Local only for
+now; the plan is `development/plans/card-games.md`.
 
-## What's here so far
+- **Set a table, share the link.** A table gets a four-letter code and a link like
+  `…/KXPT`, with a QR code. No accounts: a name and a seal are enough, and a reload puts you back in
+  your chair with your hand.
+- **Pick the game in the lobby,** with the rounds (everyone deals once a round), a clock per move if
+  wanted, and the game's house rules (each game's defaults are the official rules, or the user's
+  picks). Bots fill the empty chairs; with more at the table than the game takes, the dealer sits
+  out.
+- **Cards you handle,** from Stichle: your hand is a fan; drag a card up or flick it, or tap it
+  twice; a card you may not play shakes and drops back; hold one to look at it big (it tilts with the
+  phone). Picking several cards (the Skat to put back, poverty's three) is tapping them.
+- **After each deal** its result in the game's own words, everyone's points, then the next deal once
+  everyone has tapped on. The score sheet is a tap away; at the end the totals and their lines.
+
+## What's here
 
 - **`server/core/`**: what every game shares. `cards.mjs` (card ids, decks, Augen, shuffling,
-  dealing in packets), `tricks.mjs` (following and taking tricks from a game's own ranking).
+  dealing in packets), `tricks.mjs` (following and taking tricks from a game's own ranking),
+  `match.mjs` (deals in a row at one table: whose deal, who sits out, the totals; a game adds its
+  own match rules through hooks).
 - **`server/games/`**: one module per game, a pure state machine each: `deal()` makes a deal's
   state, `moves()` lists a seat's legal moves, `act()` makes one and returns the events for the
   table, `view()` is what one seat may see (never another hand). No I/O, no clock, no randomness of
-  its own: a `randomInt` comes in, so tests deal fixed hands or pass a seeded one.
+  its own. `index.mjs` lists them with their bots.
 - **`server/bots/`**: a bot per game, deterministic, looking only at its own seat's view.
-- **`server/core/match.mjs`**: deals in a row at one table: whose deal it is, who sits out (more
-  people than the game takes: the dealer first), the running totals. A game adds its own match rules
-  through hooks (Doppelkopf: the duty solo and Bock rounds).
+- **`server/rooms.mjs`**: the rooms (adapted from Stichle's `game.mjs`): codes, seats, the host,
+  the lobby's settings, a game played deal after deal through the match, the clock per move, bots and
+  the absent, one view per page. `api.mjs` (JSON moves, SSE views), `server.mjs` (the production
+  server, no dependencies).
+- **`src/`**: the page (Svelte 5), adapted from Stichle's: `lib/deck.js` (the German deck, drawn in
+  code), `components/MauTable`, `TrickTable` (Doppelkopf and Skat, with `DokoPanel` and
+  `SkatPanel`), `DurakTable`, `Hand`, `Trick`, `DealEnd`, `ScoreSheet`, `Final`, `Lobby`.
+- **`vendor/ewo/`**: Folio's shared tokens and elements, as Stichle vendored them (Folio b6d395e).
 
 Card ids name the card the French way, whatever deck the page draws: `h-10`, `c-Q`, `d-A` (suits
 c Kreuz/Eichel, s Pik/Grün, h Herz, d Karo/Schellen; J Bube/Unter, Q Dame/Ober, A Ass/Daus).
@@ -94,8 +115,27 @@ Internationale Skatordnung (ISkO, November 2022), as `server/games/skat.mjs` has
   the score, not the value checked against the bid, and leaves the list's 50 and 40/30 as they are);
   Bock rounds (after 60 : 60, or Kontra and Re both said, the next round counts double).
 
+### Durak
+
+2 to 6 players, 36 cards (6 to Ass), six each; the next card turns up under the stock: trump. The
+attacker leads; the defender beats each card (higher in its suit, or a trump over a plain card, a
+higher trump over a trump). Everyone else may throw in cards of a rank already on the table: never
+more than six in a bout (five in the first) and never more than the defender held. All beaten: the
+cards go off, and the defender attacks next. Taken: the defender picks the table up, and the next
+player attacks. Everyone draws back up to six, the attacker first. With the stock gone, whoever has
+no cards is out; the last one holding cards is the Durak (a point off). House rules: passing the
+attack on with a card of its rank (off), who may throw in (everyone, or the defender's neighbours),
+five in the first bout (on).
+
 ## Commands
 
 ```bash
-npm test
+npm install
+npm run dev          # the whole app on one port (6410): the game server runs inside Vite
+npm test             # the engines, the bots, the match and the rooms (node:test)
+npm run check        # svelte-check
+npm run build && npm start -- --port 6411    # the production server with the built page
+node tools/qa.mjs http://localhost:6411      # one person and bots at each game in WebKit, 390 px
 ```
+
+The QA script borrows Playwright from Folio's checkout next door (`../folio/node_modules`).
