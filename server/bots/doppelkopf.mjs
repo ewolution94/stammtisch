@@ -134,7 +134,17 @@ function playFor(state, seat, hand) {
   const cheapest = (cards) => [...cards].sort((a, b) => augen(a) - augen(b) || r.rank(a) - r.rank(b) || (a === 'd-A' ? 1 : b === 'd-A' ? -1 : 0))[0];
   const fattest = (cards) => [...cards].sort((a, b) => augen(b) - augen(a) || r.rank(a) - r.rank(b))[0];
 
-  if (!trick.length) return lead(state, seat, hand, legal, r, me, played, cheapest);
+  // A bride still looking for her partner lets the others take the tricks.
+  const w = state.wedding;
+  const seeking = w !== null && w.trick === null && w.seat === seat;
+
+  if (!trick.length) {
+    if (seeking) {
+      const plain = legal.filter((id) => r.cls(id) !== 'trump' && parseCard(id).r !== 'A');
+      if (plain.length) return cheapest(plain);
+    }
+    return lead(state, seat, hand, legal, r, me, played, cheapest, out);
+  }
 
   const at = trickWinner(trick, r, { last: state.tricks.length + 1 === state.size });
   const leader = trick[at].seat;
@@ -152,6 +162,10 @@ function playFor(state, seat, hand) {
     return !anyHigher(id, r, out);
   };
 
+  if (seeking) {
+    const duck = losers.filter((id) => id !== 'd-A');
+    if (duck.length) return cheapest(duck);
+  }
   if (friend && (rest === 0 || friendsAfter || sure(trick[at].card))) {
     // The trick is ours: put something fat on it (a fox too, it's safe with a partner).
     const plain = losers.filter((id) => r.cls(id) !== 'trump' || id === 'd-A' || id === 'd-10');
@@ -190,8 +204,19 @@ function trumpsOut(r, out) {
   return false;
 }
 
-function lead(state, seat, hand, legal, r, me, played, cheapest) {
+function lead(state, seat, hand, legal, r, me, played, cheapest, out) {
   const c = /** @type {NonNullable<State['contract']>} */ (state.contract);
+  const lone = c.soloist === seat && (c.kind === 'solo' || c.kind === 'silent' || c.alone);
+  if (lone) {
+    // A soloist: a trump nothing out there beats first, then a fresh Ass, then a low trump to draw theirs.
+    const trumps = legal.filter((id) => r.cls(id) === 'trump').sort((a, b) => r.rank(b) - r.rank(a));
+    const sureTrump = trumps.find((id) => !anyHigher(id, r, out));
+    if (sureTrump && trumpsOut(r, out)) return sureTrump;
+    const freshAce = legal.find((id) => r.cls(id) !== 'trump' && parseCard(id).r === 'A' && !state.tricks.some((t) => r.cls(t.cards[0].card) === r.cls(id)));
+    if (freshAce) return freshAce;
+    if (trumps.length && trumpsOut(r, out)) return trumps[trumps.length - 1];
+    if (sureTrump) return sureTrump;
+  }
   // A plain suit's Ass while nobody has played that suit yet: it usually goes through once.
   const fresh = legal.filter((id) => {
     if (r.cls(id) === 'trump' || parseCard(id).r !== 'A') return false;
@@ -200,8 +225,7 @@ function lead(state, seat, hand, legal, r, me, played, cheapest) {
   });
   if (fresh.length) return fresh[0];
   const trumps = legal.filter((id) => r.cls(id) === 'trump');
-  const lone = c.soloist === seat;
-  if ((me === 're' && trumps.length >= 5) || (lone && trumps.length)) {
+  if (me === 're' && trumps.length >= 5) {
     // Pull trumps: the highest when it's sure to hold, else a middling one.
     const sorted = [...trumps].sort((a, b) => r.rank(b) - r.rank(a));
     return sorted[Math.min(1, sorted.length - 1)];
