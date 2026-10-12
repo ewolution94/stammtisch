@@ -87,7 +87,7 @@ export const cost = (id) => {
  *   phase: 'play' | 'done', turn: number, dir: 1 | -1,
  *   wish: Suit | null, penalty: number, drawn: string | null, again: boolean,
  *   skipped: number | null, stuck: number, said: boolean[],
- *   winner: number | null, points: number[] | null,
+ *   winner: number | null, points: number[] | null, result?: { winner: number, points: number[], hands: string[][] },
  * }} State
  */
 
@@ -362,6 +362,8 @@ function finish(state, winner) {
   state.drawn = null;
   state.penalty = 0;
   state.points = scoreDeal(state);
+  // What the deal's result shows: who went out, and the cards left in every hand.
+  state.result = { winner, points: [...state.points], hands: state.hands.map(sortHand) };
 }
 
 /**

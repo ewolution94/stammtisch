@@ -1,7 +1,7 @@
 <!--
-  The game's sounds, from what changes in the view: the deal, every card landing (a shimmer for a
-  Wizard), a trick taken (bright when it's yours), your move, the round's result for you, the end.
-  Each device plays its own (src/lib/sound.svelte.ts; off in Settings).
+  The game's sounds, from what changes in the view: the deal, every card landing, a trick taken
+  (bright when it's yours), your move, the deal's result for you, the end. Each device plays its own
+  (src/lib/sound.svelte.ts; off by default, on in Settings). From Stichle's Sounds.svelte.
 -->
 <script lang="ts">
   import type { View } from '../lib/api';
@@ -20,24 +20,25 @@
     if (!v?.game || !before?.game || before.game.n !== v.game.n) return;
     const g = v.game;
     const pg = before.game;
-    const mine = v.me ? g.seats.indexOf(v.me) : -1;
-    if (g.round !== pg.round || (g.phase === 'round' && pg.phase !== 'round')) play.deal(g.round);
-    const landed = g.trick.cards.length > pg.trick.cards.length || (g.lastTrick && g.lastTrick.n !== pg.lastTrick?.n);
-    if (landed) {
-      play.card();
-      const card = g.lastTrick && g.lastTrick.n !== pg.lastTrick?.n ? g.lastTrick.cards.at(-1)?.card : g.trick.cards.at(-1)?.card;
-      if (card?.startsWith('z-')) setTimeout(() => play.wizard(), 80);
+    const lastSeen = pg.events.at(-1)?.n ?? 0;
+    const fresh = g.events.filter((e) => e.n > lastSeen);
+    const mine = g.seat >= 0 ? g.dealSeats[g.seat] : -1;
+    let landed = false;
+    for (const e of fresh) {
+      if (e.type === 'deal') play.deal(8);
+      else if (e.type === 'play') landed = true;
+      else if (e.type === 'trick' && typeof e.seat === 'number') {
+        const yours = e.seat === mine;
+        setTimeout(() => (yours ? play.won() : play.lost()), 650);
+      }
     }
-    if (g.lastTrick && g.lastTrick.n !== pg.lastTrick?.n) {
-      const yours = g.lastTrick.winner === mine;
-      setTimeout(() => (yours ? play.won() : play.lost()), 650);
-    }
-    const myMove = g.phase === 'round' && g.stage !== 'done' && g.turn === mine;
-    const wasMine = pg.phase === 'round' && pg.stage !== 'done' && pg.turn === mine && pg.stage === g.stage;
-    if (mine >= 0 && myMove && !wasMine) setTimeout(() => play.yourTurn(), landed ? 500 : 0);
-    if (mine >= 0 && g.pad.length > pg.pad.length) {
-      const row = g.pad.at(-1)!;
-      setTimeout(() => (row.bids[mine] === row.won[mine] ? play.made() : play.missed()), 300);
+    if (landed) play.card();
+    const turn = g.deal && g.phase === 'deal' ? g.deal.turn : -1;
+    const was = pg.deal && pg.phase === 'deal' ? pg.deal.turn : -1;
+    if (g.seat >= 0 && turn === g.seat && (was !== g.seat || pg.deal?.phase !== g.deal?.phase)) setTimeout(() => play.yourTurn(), landed ? 500 : 0);
+    if (mine >= 0 && g.phase === 'scored' && pg.phase !== 'scored' && g.last && !g.last.result?.void) {
+      const p = g.last.points[mine] ?? 0;
+      setTimeout(() => (p > 0 ? play.made() : play.missed()), 300);
     }
     if (v.phase === 'final' && before.phase === 'play' && g.ended === 'done') setTimeout(() => play.fanfare(), 900);
   });

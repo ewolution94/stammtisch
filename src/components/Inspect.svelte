@@ -1,10 +1,10 @@
 <!--
   A card held up to look at: big, on a dark stage, tilting with the phone (src/lib/tilt.ts; iOS asks
   once, from the hold that opened it), with a finger, or towards the mouse, the foil moving with
-  the light. Opened by holding a card in your hand, or by tapping the trump card.
+  the light. Opened by holding a card in your hand.
 -->
 <script lang="ts">
-  import { fromId, nameOf } from '../lib/deck';
+  import { nameOf } from '../lib/deck';
   import { i18n, t } from '../lib/i18n.svelte';
   import { tilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -20,9 +20,9 @@
 <svelte:window onkeydown={(e) => card && e.key === 'Escape' && onclose()} />
 
 {#if card}
-  <div class="stage" role="dialog" aria-modal="true" aria-label={nameOf(fromId(card), i18n.lang)}>
+  <div class="stage" role="dialog" aria-modal="true" aria-label={nameOf(card, i18n.lang)}>
     <div class="top">
-      <span class="name">{nameOf(fromId(card), i18n.lang)}</span>
+      <span class="name">{nameOf(card, i18n.lang)}</span>
       <button class="btn paper small" type="button" bind:this={closeButton} onclick={onclose}>{t('close')}</button>
     </div>
     <div class="hold">
@@ -44,7 +44,7 @@
     align-items: center;
     gap: 14px;
     padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 18px);
-    background: rgb(6 9 26 / 0.94);
+    background: rgb(8 16 11 / 0.94);
     color: var(--on-cloth);
     animation: fade 0.2s ease-out both;
     touch-action: none;

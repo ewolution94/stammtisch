@@ -422,7 +422,7 @@ function scoreOverbidNull(s) {
   const points = [0, 0, 0];
   points[d] = s.rules.scoring === 'list' ? -2 * value - 50 : -2 * value;
   if (s.rules.scoring === 'list') for (const seat of [0, 1, 2]) if (seat !== d) points[seat] = 40;
-  return { won: false, value, overbid: true, factor: 1, declarer: d, bid: s.bid, contract: { ...s.contract }, points };
+  return { won: false, value, overbid: true, factor: 1, declarer: d, bid: s.bid, contract: { ...s.contract }, skatCards: [...s.skat, ...s.put], points };
 }
 
 function startPlay(s, events) {
@@ -512,7 +512,8 @@ export function score(s) {
     points[d] = won ? value + 50 : -2 * value - 50;
     if (!won) for (const seat of [0, 1, 2]) if (seat !== d) points[seat] = 40;
   } else points[d] = won ? value : -2 * value;
-  return { won, value, overbid, factor, declarer: d, bid: s.bid, contract: { ...c }, ...detail, points };
+  // The Skat, shown with the result (what lay in it, or what the declarer put back).
+  return { won, value, overbid, factor, declarer: d, bid: s.bid, contract: { ...c }, ...detail, skatCards: [...s.skat, ...s.put], points };
 }
 
 /**
@@ -536,7 +537,7 @@ function scoreRamsch(s) {
   const through = tricks.findIndex((n) => n === 10);
   if (through >= 0) {
     points[through] = 120;
-    return { ramsch: true, augen, tricks, durchmarsch: through, points };
+    return { ramsch: true, augen, tricks, durchmarsch: through, skatCards: [...s.skat], points };
   }
   const most = Math.max(...augen);
   const virgins = tricks.filter((n) => n === 0).length;
@@ -544,7 +545,7 @@ function scoreRamsch(s) {
   augen.forEach((a, seat) => {
     if (a === most) points[seat] = -a * factor;
   });
-  return { ramsch: true, augen, tricks, jungfrau: virgins, points };
+  return { ramsch: true, augen, tricks, jungfrau: virgins, skatCards: [...s.skat], points };
 }
 
 // ---- views ------------------------------------------------------------------------------------------------

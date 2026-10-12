@@ -4,9 +4,11 @@
 import * as maumau from './maumau.mjs';
 import * as doppelkopf from './doppelkopf.mjs';
 import * as skat from './skat.mjs';
+import * as durak from './durak.mjs';
 import { botMove as maumauBot } from '../bots/maumau.mjs';
 import { botMove as doppelkopfBot } from '../bots/doppelkopf.mjs';
 import { botMove as skatBot } from '../bots/skat.mjs';
+import { botMove as durakBot } from '../bots/durak.mjs';
 
 /**
  * @typedef {{ module: any, bot: (state: any, seat: number) => Record<string, unknown>, tricks: boolean }} GameDef
@@ -18,6 +20,7 @@ export const GAMES = Object.freeze({
   maumau: { module: maumau, bot: maumauBot, tricks: false },
   doppelkopf: { module: doppelkopf, bot: doppelkopfBot, tricks: true },
   skat: { module: skat, bot: skatBot, tricks: true },
+  durak: { module: durak, bot: durakBot, tricks: false },
 });
 
 export const GAME_IDS = Object.freeze(Object.keys(GAMES));

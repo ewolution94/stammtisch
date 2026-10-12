@@ -843,6 +843,7 @@ export function summarize(id, record) {
     if (r.ramsch) return { kind: 'ramsch', loser: r.points.findIndex((p) => p < 0) >= 0 ? record.seats[r.points.findIndex((p) => p < 0)] : null };
     return { kind: 'skat', declarer: record.seats[r.declarer], game: r.contract?.game ?? null, hand: r.contract?.hand ?? false, won: r.won, value: r.value, augen: r.augen ?? null, overbid: r.overbid };
   }
+  if (id === 'durak') return { kind: 'durak', loser: r.loser != null ? record.seats[r.loser] : null };
   return { kind: id };
 }
 

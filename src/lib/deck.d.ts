@@ -1,0 +1,16 @@
+export type Suit = 'c' | 's' | 'h' | 'd';
+export type Lang = 'de' | 'en';
+export const SUITS: Suit[];
+export const INKS: Record<'umber' | 'black', Record<Suit, string>>;
+export const DISC: Record<'umber' | 'black', Record<Suit, string>>;
+export const TINT: Record<Suit, string>;
+export const PAPER: string;
+export const LINEN: string;
+export const BLACK: string;
+export const BORDEAUX: string;
+export const WORDS: Record<Lang, { suit: Record<Suit, string>; rank: Record<'J' | 'Q' | 'K' | 'A', string>; back: string }>;
+export function parse(id: string | null | undefined): { s: Suit; r: string } | null;
+export function nameOf(id: string | null | undefined, lang?: Lang): string;
+export function sign(suit: Suit, x: number, y: number, size: number, fill: string, cut: string, line?: string | null): string;
+export function defs(): string;
+export function card(id: string | null | undefined, options?: { lang?: Lang; uid?: string | number; courts?: 'A' | 'B'; eichel?: 'umber' | 'black' }): string;

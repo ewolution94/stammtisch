@@ -56,7 +56,7 @@ test('starting needs the game’s table: Doppelkopf four to six, Skat three or f
   assert.equal(t.pages[0].view.game.id, 'doppelkopf');
 });
 
-for (const [id, people, bots] of [['maumau', 1, 2], ['doppelkopf', 1, 2], ['skat', 1, 1]]) {
+for (const [id, people, bots] of [['maumau', 1, 2], ['doppelkopf', 1, 2], ['skat', 1, 1], ['durak', 1, 2]]) {
   test(`a whole ${id} game of bots and absent humans plays to its end; the totals add up`, () => {
     const { rooms, clock } = setup(id.length);
     const t = table(rooms, people, id);
@@ -72,7 +72,7 @@ for (const [id, people, bots] of [['maumau', 1, 2], ['doppelkopf', 1, 2], ['skat
     assert.equal(v.phase, 'final', `${id} ended`);
     assert.equal(v.game.ended, 'done');
     assert.equal(v.game.match.counted, v.game.match.deals);
-    if (id !== 'maumau') assert.equal(v.game.match.totals.reduce((a, b) => a + b, 0) % 1, 0);
+    assert.ok(v.game.match.totals.every(Number.isInteger));
     if (id === 'doppelkopf') assert.equal(v.game.match.totals.reduce((a, b) => a + b, 0), 0, 'Doppelkopf points sum to zero');
     assert.ok(v.game.match.history.length >= v.game.match.deals);
     watcher.close();

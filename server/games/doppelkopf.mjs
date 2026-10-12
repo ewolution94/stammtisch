@@ -791,6 +791,8 @@ export function view(state, seat) {
     hand: mine ? sortHand(state, state.hands[seat]) : null,
     legal: mine ? [...new Set(legalCards(state, seat))] : [],
     declared: mine ? state.declared[seat] : null,
+    /** Your reservations to choose from, when it's your turn to say one. */
+    choices: mine && state.phase === 'reserve' && seat === state.turn ? moves(state, seat) : [],
     pigs: state.pigsShown ? state.pigs : null,
     result: state.result,
   };

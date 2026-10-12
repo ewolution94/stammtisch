@@ -1,0 +1,422 @@
+/* Stammtisch's look: the regulars' table in the corner of the pub. Dark oak panelling all round, a
+   blue-green baize on a mahogany rail with brass studs, the cards in letterpress on cotton paper
+   (src/lib/deck.js), the backs bordeaux and gold. Panels are the cards' own paper with their double
+   rule; numbers and headings in Bodoni Moda, pressed in; gold only where something is special. Light
+   only, like Stichle (whose look this shares): the cards are paper.
+   Folio's tokens and elements are the bones (vendor/ewo); the tokens it shares point at these. */
+@import '../vendor/ewo/tokens/index.css';
+@import '../vendor/ewo/tokens/base.css';
+@import '@fontsource-variable/bodoni-moda/opsz.css';
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: light;
+  --ewo-light: 1;
+
+  /* The room and the table. */
+  --wood: #2a1a12;
+  --wood-2: #1a100b;
+  --cloth: #2f6b4f;
+  --cloth-2: #255a42;
+  --cloth-3: #3a7d5d;
+  --on-cloth: #ece6d6;
+  --on-cloth-2: #cdc3a8;
+  --paper: #f8f6f1;
+  --paper-2: #efeadf;
+  --ink: #1c1a22;
+  --ink-2: #3d3a45;
+  --mute: #5d5866;
+  --line: #c9c1ae;
+
+  /* The lead colour: the bordeaux of the card backs (the family tells the apps apart by it). */
+  --accent: #5b1427;
+  --accent-2: #7a1f35;
+
+  /* The four inks, as on the cards (src/lib/deck.js): Eichel umber, Grün, Herz, Schellen. */
+  --eichel: #4a3122;
+  --gruen: #17834a;
+  --herz: #cc2b2b;
+  --schellen: #c99700;
+
+  /* Doppelkopf's two parties. */
+  --re: #8a1f2d;
+  --kontra: #1f4f8a;
+
+  --gold: #c9a24a;
+  --gold-hi: #f3dc94;
+  --gold-lo: #7b5719;
+  --good: #1d6849;
+  --bad: #b3261e;
+
+  --back-ground: #5b1427;
+  --back-line: #c9a24a;
+
+  --display: 'Bodoni Moda Variable', 'Bodoni Moda', Didot, 'Times New Roman', serif;
+  --shadow: 0 1px 0 rgb(10 14 10 / 0.25), 0 14px 26px -16px rgb(5 10 6 / 0.75);
+
+  --gutter: clamp(16px, 3vw, 40px);
+  --page: 1180px;
+  --bar-h: 58px;
+
+  /* Folio's shared tokens, on paper (its sheet, segmented and switch use these). */
+  --ewo-bg: var(--paper);
+  --ewo-bg-raised: var(--paper);
+  --ewo-panel: var(--paper);
+  --ewo-fg: var(--ink);
+  --ewo-fg-2: var(--ink-2);
+  --ewo-fg-3: var(--mute);
+  --ewo-line: rgb(28 26 34 / 0.2);
+  --ewo-line-2: rgb(28 26 34 / 0.1);
+  --ewo-line-strong: rgb(28 26 34 / 0.42);
+  --ewo-accent: var(--accent);
+  --ewo-accent-2: var(--accent);
+  --ewo-accent-ink: var(--paper);
+  --ewo-focus: 3px solid var(--gold);
+}
+
+[data-ewo-project='stammtisch'] {
+  --ewo-accent: var(--accent);
+  --ewo-accent-2: var(--accent);
+}
+
+/* The pub: dark oak panelling, warm light from the lamp over the table. */
+html {
+  background-color: #150d09;
+  background-image:
+    radial-gradient(120% 80% at 50% 0%, #3a2416, #120a07 70%),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.015) 0 2px, transparent 2px 140px);
+  background-attachment: fixed;
+  overflow-x: clip;
+}
+
+/* The baize: blue-green felt on a mahogany rail with brass studs, the lamp's light in the middle. */
+.felt {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--cloth);
+  background-image:
+    radial-gradient(100% 80% at 50% 45%, rgb(255 240 200 / 0.08), rgb(0 0 0 / 0.32)),
+    repeating-linear-gradient(45deg, rgb(255 255 255 / 0.03) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-45deg, rgb(0 0 0 / 0.07) 0 1px, transparent 1px 3px);
+  border-radius: var(--felt-r, 26px);
+  box-shadow:
+    0 0 0 9px #4d1e11,
+    0 0 0 10px #7a3a22,
+    inset 0 0 0 1px rgb(0 0 0 / 0.4),
+    inset 0 0 30px rgb(0 0 0 / 0.4),
+    0 22px 36px -16px rgb(0 0 0 / 0.9);
+}
+.felt::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -6px;
+  border: 3px dotted rgb(232 195 106 / 0.85);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+body {
+  background: transparent;
+  color: var(--on-cloth);
+  font-size: 15px;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* No double-tap zoom on the iPhone on anything you tap (learnings/ios-and-webkit.md). */
+:where(button, a, label, summary, input, select, textarea, [role='button'], [role='radio']) {
+  touch-action: manipulation;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- paper ------------------------------------------------------------------------------- */
+
+/* A paper panel with the cards' double rule: a hairline, a gap, a heavier line. */
+.sheet {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.sheet::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgb(28 26 34 / 0.55);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 4.5px rgb(28 26 34 / 0.75);
+  pointer-events: none;
+}
+.sheet > * {
+  position: relative;
+}
+
+.display {
+  font-family: var(--display);
+  font-weight: 700;
+  font-optical-sizing: auto;
+  letter-spacing: -0.005em;
+}
+.pressed {
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.7), 0 -1px 0 rgb(0 0 0 / 0.12);
+}
+
+.label {
+  font: 600 11px/1.3 var(--ewo-sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.on-cloth .label,
+.label.on-cloth {
+  color: var(--on-cloth-2);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: 650 15px / 1.15 var(--ewo-sans);
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--ewo-dur-1) var(--ewo-ease), background-color var(--ewo-dur-1) var(--ewo-ease);
+}
+/* The main move: a bordeaux pill with a gold hairline, the number of a letterpress ticket. */
+.btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--paper);
+  box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 3px var(--gold);
+  font: 700 18px / 1 var(--display);
+  letter-spacing: 0.02em;
+}
+.on-cloth .btn.primary {
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--paper), inset 0 0 0 3px var(--gold);
+}
+.btn.paper {
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+}
+.btn.ghost {
+  border-color: rgb(236 230 214 / 0.5);
+  color: var(--on-cloth);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+@media (hover: hover) {
+  .btn:not(.primary, .paper, .ghost):hover:not(:disabled) {
+    background: rgb(28 26 34 / 0.05);
+  }
+  .btn.primary:hover:not(:disabled) {
+    background: var(--accent-2);
+  }
+  .on-cloth .btn.primary:hover:not(:disabled),
+  .btn.paper:hover:not(:disabled) {
+    background: #ffffff;
+  }
+  .btn.ghost:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.08);
+  }
+}
+.btn.quiet {
+  min-height: 40px;
+  border-color: transparent;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.on-cloth .btn.quiet,
+.btn.quiet.on-cloth {
+  color: var(--on-cloth-2);
+}
+.btn.small {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+.btn.block {
+  width: 100%;
+}
+.btn:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+.btn:focus-visible,
+.input:focus-visible,
+.chip:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 14px/1.1 var(--ewo-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+.chip[aria-pressed='true'],
+.chip[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--paper);
+}
+.chip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Form controls stay at 16px or more: smaller ones make iOS zoom the page. */
+.input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--ink);
+  font: 600 17px / 1.2 var(--ewo-sans);
+}
+.input::placeholder {
+  color: #85808c;
+}
+
+.error {
+  color: var(--bad);
+  font-size: 14px;
+  font-weight: 600;
+}
+.on-cloth .error {
+  color: #ffb4a6;
+}
+
+.sure {
+  margin: 0;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pair .btn {
+  flex: 1 1 140px;
+}
+.btn.danger-fill {
+  border-color: var(--bad);
+  background: var(--bad);
+  color: #ffffff;
+}
+
+/* The logo (Logo.svelte): the name in Bodoni, two cards fanned beside it. */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 800 25px/1 var(--display);
+  letter-spacing: 0.005em;
+  color: var(--on-cloth);
+  white-space: nowrap;
+}
+.logo svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root[data-scrolling] main {
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Waiting for the server (Folio's track(), src/lib/waits.ts): a little fan of three cards. */
+.ewo-wait-mark .fan {
+  width: 1.4em;
+  height: 1em;
+  overflow: visible;
+  fill: var(--paper);
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+.ewo-wait-mark .fan rect {
+  transform-box: view-box;
+  transform-origin: 14px 17px;
+  animation: fan 1.2s cubic-bezier(0.5, 0, 0.3, 1) infinite;
+}
+.ewo-wait-mark .fan .l {
+  --to: -24deg;
+}
+.ewo-wait-mark .fan .r {
+  --to: 24deg;
+}
+@keyframes fan {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  45%,
+  60% {
+    rotate: var(--to, 0deg);
+  }
+}
+:root {
+  --ewo-wait-bubble-bg: var(--ink);
+  --ewo-wait-bubble-fg: var(--paper);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ewo-wait-mark .fan rect {
+    animation: none;
+    rotate: var(--to, 0deg);
+  }
+}
