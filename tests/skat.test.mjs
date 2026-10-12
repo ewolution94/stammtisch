@@ -200,8 +200,9 @@ test('Null ends the moment the declarer takes a trick, lost', () => {
  * A finished suit or Grand game for scoring: the declarer (seat 1) held exactly `mine` (plus the
  * Skat), and took `augen` with the Skat in `declTricks` tricks; the defenders' cards carry the Augen.
  */
-function finished({ game, hand = false, schneider = false, schwarz = false, ouvert = false, bid = 18, mine, skat = ['c-7', 'c-8'], augen, declTricks = 1, otherTricks = 9, scoring }) {
+function finished({ game, hand = false, schneider = false, schwarz = false, ouvert = false, bid = 18, mine, skat = ['c-7', 'c-8'], augen, declTricks = 1, otherTricks = 9, scoring, doubled = 0 }) {
   const s = deal({ randomInt: seeded(1), rules: scoring ? { scoring } : {} });
+  s.doubled = doubled;
   s.hands = [[], [...mine], []];
   s.phase = 'done';
   s.declarer = 1;
@@ -258,15 +259,139 @@ test('Schneider and Schwarz: 90 is Schneider; every trick is Schwarz too', () =>
   assert.equal(black.value, 40);
 });
 
-test('Hand and announcements: Grand Hand mit 4, Schneider announced and made: 24 × 7 = 168', () => {
-  const r = finished({ game: 'grand', hand: true, schneider: true, mine: ['c-J', 's-J', 'h-J', 'd-J'], augen: 92, bid: 18 });
-  // mit 4, Spiel, Hand, Schneider, Schneider angesagt: 4 + 1 + 1 + 1 + 1 = 8? No: 4 + 1 = 5, + Hand 6, + Schneider 7, + angesagt 8.
-  assert.equal(r.value, 24 * 8);
-  const missed = finished({ game: 'grand', hand: true, schneider: true, mine: ['c-J', 's-J', 'h-J', 'd-J'], augen: 85, bid: 18 });
-  assert.equal(missed.won, false, 'Schneider announced needs 90');
-  assert.equal(missed.value, 24 * 7);
+test('Hand and announcements: an announced level counts whether made or not, and none twice (ISkO 2.5.7)', () => {
+  const made = finished({ game: 'grand', hand: true, schneider: true, mine: ['c-J', 's-J', 'h-J', 'd-J'], augen: 92 });
+  // mit 4, Spiel, Hand, Schneider, Schneider angesagt: 8 × 24.
+  assert.equal(made.value, 192);
+  assert.equal(made.won, true);
+  // The ISkO's example: the defenders get 32, the announced Schneider is missed: lost with the same 8.
+  const missed = finished({ game: 'grand', hand: true, schneider: true, mine: ['c-J', 's-J', 'h-J', 'd-J'], augen: 88 });
+  assert.equal(missed.won, false);
+  assert.equal(missed.value, 192);
+  assert.deepEqual(missed.points, [0, -384, 0]);
+  // Kreuz mit 3, Schwarz announced and made: 3 + Spiel, Hand, Schneider, angesagt, Schwarz, angesagt = 9 × 12.
+  const black = finished({ game: 'c', hand: true, schneider: true, schwarz: true, mine: ['c-J', 's-J', 'h-J'], augen: 120, declTricks: 10, otherTricks: 0 });
+  assert.equal(black.value, 108);
+  // Kreuz ouvert mit 2: everything announced, and Ouvert: 9 × 12.
+  const open = finished({ game: 'c', hand: true, schneider: true, schwarz: true, ouvert: true, mine: ['c-J', 's-J'], augen: 120, declTricks: 10, otherTricks: 0 });
+  assert.equal(open.value, 108);
+  // Grand ouvert mit 4: the highest game there is.
+  const top = finished({ game: 'grand', hand: true, schneider: true, schwarz: true, ouvert: true, mine: ['c-J', 's-J', 'h-J', 'd-J'], augen: 120, declTricks: 10, otherTricks: 0 });
+  assert.equal(top.value, 264);
 });
 
+test('the declarer Schneider himself: Pik ohne 1 at 33, 30 Augen: ohne 1, Spiel 2, Schneider 3: −66', () => {
+  const r = finished({ game: 's', mine: ['s-J'], augen: 30, bid: 33 });
+  assert.deepEqual(r.matadors, { mit: false, n: 1 });
+  assert.equal(r.won, false);
+  assert.equal(r.overbid, false);
+  assert.deepEqual(r.points, [0, -66, 0]);
+});
+
+test('overbid: lost, at the bid rounded up to the game’s next multiple (ISkO 3.6.1, 3.6.3)', () => {
+  // Bid 45, Herz mit 3: 40 without Schneider: lost as 50.
+  const herz = finished({ game: 'h', mine: ['c-J', 's-J', 'h-J'], augen: 80, bid: 45 });
+  assert.equal(herz.overbid, true);
+  assert.equal(herz.won, false);
+  assert.deepEqual(herz.points, [0, -100, 0]);
+  // Kreuz Hand overbid at 40: valued 48.
+  const kreuz = finished({ game: 'c', hand: true, mine: ['c-J'], augen: 70, bid: 40 });
+  assert.equal(kreuz.value, 48);
+  // Herz Hand at 60 with the Herz Unter in the Skat: ohne 2, Spiel, Hand = 40: lost as 60.
+  const hand = finished({ game: 'h', hand: true, mine: ['h-A'], skat: ['h-J', 'c-7'], augen: 80, bid: 60 });
+  assert.deepEqual(hand.matadors, { mit: false, n: 2 });
+  assert.deepEqual(hand.points, [0, -120, 0]);
+});
+
+test('an overbid Null is lost the moment it’s declared, as the cheapest suit or Grand game reaching the bid', () => {
+  const s = deal({ randomInt: seeded(9) });
+  bidTo(s, 24);
+  act(s, 1, { type: 'take' });
+  act(s, 1, { type: 'discard', cards: s.hands[1].slice(0, 2) });
+  const events = act(s, 1, { type: 'declare', game: 'null' });
+  assert.deepEqual(events.at(-1), { type: 'overbid', seat: 1 });
+  assert.equal(s.phase, 'done');
+  assert.equal(s.result.won, false);
+  // Kreuz mit or ohne 1 is 24, the cheapest game at 24 for any hand with at most one matador.
+  const cards = [...s.hands[1], ...s.put];
+  assert.equal(s.result.value, S.cheapestReaching(cards, 24));
+  assert.ok(s.result.value >= 24);
+  // The Skatgericht's examples, for a declarer with the ♣ Unter alone (mit 1 in every game):
+  // bid 24 → Kreuz 24, 30 → Herz 30, 48 → Kreuz or Grand 48, 50 → Herz 50, 60 → Herz or Kreuz 60.
+  const mit1 = ['c-J', 'c-8', 's-7', 's-8', 's-9', 'h-7', 'h-8', 'h-9', 'd-7', 'd-8', 'd-9', 'c-7'];
+  assert.deepEqual([24, 30, 48, 50, 60].map((bid) => S.cheapestReaching(mit1, bid)), [24, 30, 48, 50, 60]);
+});
+
+test('Vorhand alone may only play at 18', () => {
+  const s = deal({ randomInt: seeded(2) });
+  act(s, 1, { type: 'pass' });
+  act(s, 2, { type: 'pass' });
+  assert.deepEqual(moves(s, 0), [{ type: 'bid', value: 18 }, { type: 'pass' }]);
+  throws(() => act(s, 0, { type: 'bid', value: 20 }), 'bid');
+});
+
+test('Kontra and Re (house rule): a defender before their first card, the declarer’s answer at once; the score doubles, not the bid check', () => {
+  const s = deal({ rules: { kontra: true }, randomInt: seeded(12) });
+  bidTo(s, 18);
+  act(s, 1, { type: 'hand' });
+  act(s, 1, { type: 'declare', game: 'grand' });
+  throws(() => act(s, 1, { type: 'kontra' }), 'kontra');
+  throws(() => act(s, 1, { type: 're' }), 're');
+  act(s, 2, { type: 'kontra' });
+  throws(() => act(s, 0, { type: 'kontra' }), 'kontra');
+  assert.ok(moves(s, 1).some((m) => m.type === 're'));
+  // A card played first: the moment for Re is gone.
+  act(s, 0, { type: 'play', card: legalCards(s, 0)[0] });
+  throws(() => act(s, 1, { type: 're' }), 're');
+  const off = deal({ randomInt: seeded(12) });
+  bidTo(off, 18);
+  act(off, 1, { type: 'hand' });
+  act(off, 1, { type: 'declare', game: 'grand' });
+  throws(() => act(off, 2, { type: 'kontra' }), 'kontra');
+  // Kontra doubles the score, Re again; the list's 50 and 40 stay.
+  assert.deepEqual(finished({ game: 'c', mine: ['c-J', 's-J'], augen: 70, doubled: 1 }).points, [0, 72, 0]);
+  assert.deepEqual(finished({ game: 'c', mine: ['c-J', 's-J'], augen: 50, doubled: 2 }).points, [0, -288, 0]);
+  assert.deepEqual(finished({ game: 'c', mine: ['c-J', 's-J'], augen: 50, doubled: 1, scoring: 'list' }).points, [40, -194, 40]);
+  // The bid is checked against the undoubled value: Kreuz mit 2 (36) at a bid of 40 is overbid even with Kontra.
+  const over = finished({ game: 'c', mine: ['c-J', 's-J'], augen: 70, bid: 40, doubled: 1 });
+  assert.equal(over.overbid, true);
+  assert.equal(over.value, 96);
+});
+
+test('the list (ISkO): +50 a won game, −2 × value −50 a lost one, the other two 40 each', () => {
+  const won = finished({ game: 'c', mine: ['c-J', 's-J'], augen: 70, scoring: 'list' });
+  assert.deepEqual(won.points, [0, 86, 0]);
+  const lost = finished({ game: 'c', mine: ['c-J', 's-J'], augen: 50, scoring: 'list' });
+  assert.deepEqual(lost.points, [40, -122, 40]);
+});
+
+test('Ramsch (house rule): the most Augen lose them, the Skat added; a Jungfrau doubles; a Durchmarsch wins 120', () => {
+  const ramsch = (tricks, skat = ['c-7', 'c-8']) => {
+    const s = deal({ rules: { ramsch: true }, randomInt: seeded(1) });
+    s.contract = { game: 'ramsch', hand: false, schneider: false, schwarz: false, ouvert: false };
+    s.skat = skat;
+    s.tricks = tricks.map(([winner, augen]) => ({ lead: 0, cards: [], winner, augen }));
+    return S.score(s);
+  };
+  const plain = ramsch([[0, 40], [1, 50], [2, 30], ...Array(7).fill([0, 0])], ['c-A', 'c-7']);
+  assert.deepEqual(plain.augen, [40, 61, 30]);
+  assert.deepEqual(plain.points, [0, -61, 0]);
+  const virgin = ramsch([[0, 70], [1, 50], ...Array(8).fill([0, 0])]);
+  assert.equal(virgin.jungfrau, 1);
+  assert.deepEqual(virgin.points, [-140, 0, 0]);
+  const tie = ramsch([[0, 60], [1, 60], [2, 0], ...Array(7).fill([2, 0])]);
+  assert.deepEqual(tie.points, [-60, -60, 0]);
+  const through = ramsch(Array(10).fill([2, 12]));
+  assert.deepEqual(through.points, [0, 0, 120]);
+  // Everyone passes with Ramsch on: no redeal, Ramsch is played.
+  const s = deal({ rules: { ramsch: true }, randomInt: seeded(2) });
+  act(s, 1, { type: 'pass' });
+  act(s, 2, { type: 'pass' });
+  act(s, 0, { type: 'pass' });
+  assert.equal(s.phase, 'play');
+  assert.equal(s.contract.game, 'ramsch');
+  assert.equal(s.turn, 0);
+});
 test('the Skat counts for the declarer, and for its matadors', () => {
   const r = finished({ game: 'd', mine: ['s-J'], skat: ['c-J', 'h-7'], augen: 63 });
   assert.deepEqual(r.matadors, { mit: true, n: 2 });

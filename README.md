@@ -1,7 +1,7 @@
 # Stammtisch
 
-The classic card games for the afternoon meeting, at one table: Mau-Mau first, then Doppelkopf,
-Skat and Durak. Unbranded, played on phones beside the call, with a German deck you handle (Eichel,
+The classic card games for the afternoon meeting, at one table: Mau-Mau, Doppelkopf and Skat so
+far, Durak next. Unbranded, played on phones beside the call, with a German deck you handle (Eichel,
 Grün, Herz, Schellen). Local only for now; the plan is `development/plans/card-games.md`.
 
 ## What's here so far
@@ -67,6 +67,32 @@ Four at the table, 48 cards (twice 9 to Ass), 12 each. The default is the DDV's 
   it doesn't use up a deal; whoever still owes one at the end is forced to play it); Bock rounds (after
   120 : 120, or Re and Kontra both said, the next round of deals counts double).
 - **At the table:** four play; from five the dealer sits out (with six, the seat before them too).
+
+### Skat
+
+Three play (with four the dealer sits out), 32 cards, ten each and two in the Skat. The rules are the
+Internationale Skatordnung (ISkO, November 2022), as `server/games/skat.mjs` has them:
+
+- **Bidding:** Mittelhand says to Vorhand, then Hinterhand to whoever is left; only the one saying
+  may jump, the one listening holds or passes. Nobody bids: Vorhand may play at 18, or the game is
+  passed in (it counts in the list, and the next player deals). The 63 values from 18 to 264.
+- **The games:** Karo 9, Herz 10, Pik 11, Kreuz 12, Grand 24, times the matadors (with or without,
+  the Skat counted, Hand games too) plus Spiel, Hand, Schneider, Schneider announced, Schwarz,
+  Schwarz announced, Ouvert. Null 23, Null Hand 35, Null Ouvert 46, Null Ouvert Hand 59.
+  Announcements only with Hand; Ouvert in a suit or Grand game means everything announced.
+- **Winning:** 61 Augen, the Skat counted for the declarer. Schneider is a side with 30 or less, the
+  declarer too; Schwarz a side with no trick (the Skat is no trick). An announced level counts
+  whether made or not, none counts twice. Null is lost with the declarer's first trick.
+- **Overbid:** lost, at the bid rounded up to the game's next multiple. A Null worth less than the
+  bid is lost the moment it's declared, as the cheapest suit or Grand game that reaches the bid.
+- **Scoring:** a won game its value, a lost one twice that, minus (`plain`, the default); or the
+  ISkO's list (`list`): +50 a won game, −50 a lost one, and each other player at the table 40 (at
+  three) or 30 (at four, the dealer too) for each game the declarer loses.
+- **House rules** (not in the ISkO), off by default: Ramsch when everyone passes (only the Unter
+  trump, the most Augen lose them with the Skat, a Jungfrau doubles, a Durchmarsch wins 120);
+  Kontra and Re (a defender before their first card, the declarer's answer at once; each doubles
+  the score, not the value checked against the bid, and leaves the list's 50 and 40/30 as they are);
+  Bock rounds (after 60 : 60, or Kontra and Re both said, the next round counts double).
 
 ## Commands
 

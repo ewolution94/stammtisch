@@ -203,7 +203,8 @@ export function moves(s, seat) {
   const out = [];
   if (s.phase === 'bid' && seat === s.turn) {
     const b = s.bidding;
-    if (b.awaiting === 'say') for (const value of BIDS.filter((v) => v > s.bid)) out.push({ type: 'bid', value });
+    // Vorhand alone (nobody bid) may only play at 18; the others may jump to any value.
+    if (b.awaiting === 'say') for (const value of b.stage === 3 ? [18] : BIDS.filter((v) => v > s.bid)) out.push({ type: 'bid', value });
     else out.push({ type: 'hold' });
     out.push({ type: 'pass' });
   } else if (s.phase === 'skat' && seat === s.turn) {
@@ -236,11 +237,15 @@ export function legalCards(s, seat) {
   return legalFollow(s.hands[seat], s.trick.cards, ranking(/** @type {Contract} */ (s.contract).game));
 }
 
-/** Kontra (house rule): a defender, before playing their first card, once. */
+/**
+ * Kontra (house rule; not in the ISkO): a defender, after the declaration and before playing a card,
+ * once. It and Re double the score, never the value checked against the bid; the list's 50 and 40/30
+ * stay as they are.
+ */
 export function mayKontra(s, seat) {
   return s.rules.kontra && s.phase === 'play' && s.contract?.game !== 'ramsch' && seat !== s.declarer && s.doubled === 0 && !s.played[seat];
 }
-/** Re (house rule): the declarer, after a Kontra, before playing their first card... or right after it. */
+/** Re (house rule): the declarer's answer to a Kontra, at once (before the next card). */
 export function mayRe(s, seat) {
   return s.rules.kontra && s.phase === 'play' && seat === s.declarer && s.doubled === 1 && s.reOpen;
 }
@@ -324,7 +329,7 @@ function bidding(s, seat, move, events) {
   const b = s.bidding;
   if (move.type === 'bid') {
     if (b.awaiting !== 'say') throw new RuleError('answer');
-    if (!BIDS.includes(move.value) || move.value <= s.bid) throw new RuleError('bid');
+    if (!BIDS.includes(move.value) || move.value <= s.bid || (b.stage === 3 && move.value !== 18)) throw new RuleError('bid');
     s.bid = move.value;
     b.said.push({ seat, value: move.value });
     events.push({ type: 'bid', seat, value: move.value });
@@ -392,7 +397,32 @@ function declare(s, seat, move, events) {
   if (!legal) throw new RuleError('announce');
   s.contract = { game, hand: !s.took, ...ann };
   events.push({ type: 'declare', seat, ...s.contract });
+  // A Null worth less than the bid can't be won: lost at once (ISkO 3.6.2).
+  if (game === 'null' && nullValue(s.contract.hand, ann.ouvert) < s.bid) {
+    s.phase = 'done';
+    s.result = scoreOverbidNull(s);
+    events.push({ type: 'overbid', seat });
+    return;
+  }
   startPlay(s, events);
+}
+
+/**
+ * The cheapest suit or Grand game the declarer could have reached the bid with (its matadors, the
+ * Skat included, then levels added until it gets there): what an overbid game is lost with.
+ */
+export function cheapestReaching(cards, bid) {
+  return Math.min(...Object.entries(BASE).map(([g, base]) => base * Math.max(matadors(cards, g).n + 1, Math.ceil(bid / base))));
+}
+
+function scoreOverbidNull(s) {
+  const d = /** @type {number} */ (s.declarer);
+  const cards = [...s.hands[d], ...(s.took ? s.put : s.skat)];
+  const value = cheapestReaching(cards, s.bid);
+  const points = [0, 0, 0];
+  points[d] = s.rules.scoring === 'list' ? -2 * value - 50 : -2 * value;
+  if (s.rules.scoring === 'list') for (const seat of [0, 1, 2]) if (seat !== d) points[seat] = 40;
+  return { won: false, value, overbid: true, factor: 1, declarer: d, bid: s.bid, contract: { ...s.contract }, points };
 }
 
 function startPlay(s, events) {
@@ -408,8 +438,8 @@ function playCard(s, seat, card, events) {
   if (!isCard(card) || !hand.includes(card)) throw new RuleError('card');
   if (!legalCards(s, seat).includes(card)) throw new RuleError('follow');
   takeCard(hand, card);
-  // Once the declarer has played, Re's moment is past.
-  if (seat === s.declarer && s.played[seat]) s.reOpen = false;
+  // Re answers the Kontra at once: the next card closes it.
+  s.reOpen = false;
   s.played[seat] = true;
   s.trick.cards.push({ seat, card });
   events.push({ type: 'play', seat, card });
@@ -459,8 +489,11 @@ export function score(s) {
     // The declarer's twelve: what's left in hand, what they played, and the Skat (ISkO: it counts).
     const mine = [...s.hands[d], ...s.tricks.flatMap((t) => t.cards.filter((p) => p.seat === d).map((p) => p.card)), ...skatCards];
     const m = matadors(mine, c.game);
-    const schneider = augen >= 90 || augen <= 30;
-    const schwarz = declTricks.length === 10 || declTricks.length === 0;
+    // Schneider: a side with 30 or less (the declarer too, the Skat counted); Schwarz: a side with no
+    // trick (the Skat is no trick). An announced level counts whether reached or not, and no level
+    // counts twice (ISkO 2.5.5–2.5.7).
+    const schneider = augen >= 90 || augen <= 30 || c.schneider;
+    const schwarz = declTricks.length === 10 || declTricks.length === 0 || c.schwarz;
     won = augen >= 61 && (!c.schneider || augen >= 90) && (!c.schwarz || declTricks.length === 10);
     const mult = m.n + 1 + (c.hand ? 1 : 0) + (schneider ? 1 : 0) + (c.schneider ? 1 : 0) + (schwarz ? 1 : 0) + (c.schwarz ? 1 : 0) + (c.ouvert ? 1 : 0);
     value = BASE[/** @type {keyof typeof BASE} */ (c.game)] * mult;
@@ -482,7 +515,11 @@ export function score(s) {
   return { won, value, overbid, factor, declarer: d, bid: s.bid, contract: { ...c }, ...detail, points };
 }
 
-/** Ramsch: everyone for themselves; the Skat goes with the last trick; the most Augen lose them. */
+/**
+ * Ramsch (house rule; not in the ISkO): everyone for themselves, only the Unter trump. The most Augen
+ * lose them (ties: each in full); a player without a trick (Jungfrau) doubles it; one player taking
+ * every trick (Durchmarsch) wins 120.
+ */
 function scoreRamsch(s) {
   const augen = [0, 0, 0];
   const tricks = [0, 0, 0];
@@ -490,8 +527,11 @@ function scoreRamsch(s) {
     augen[t.winner] += t.augen;
     tricks[t.winner] += 1;
   }
-  const last = s.tricks[s.tricks.length - 1].winner;
-  augen[last] += sumAugen(s.skat);
+  // The Skat goes to whoever has the most (to each of them on a tie): the usual custom.
+  const top = Math.max(...augen);
+  augen.forEach((a, seat) => {
+    if (a === top) augen[seat] += sumAugen(s.skat);
+  });
   const points = [0, 0, 0];
   const through = tricks.findIndex((n) => n === 10);
   if (through >= 0) {
@@ -553,3 +593,38 @@ export function view(s, seat) {
     result: s.result,
   };
 }
+
+// ---- the match (server/core/match.mjs) ------------------------------------------------------------------
+
+/**
+ * Skat's match rules: a game everyone passed counts as a game in the list and the next player deals
+ * (ISkO 3.3.7). The list at a four-table: the declarer's lost game gives each other player, the dealer
+ * too, 30 instead of 40. Bock rounds (house rule): after 60 : 60, or Kontra and Re both said, the next
+ * round of deals counts double.
+ */
+export const match = {
+  /** @param {import('../core/match.mjs').Match} m */
+  start(m) {
+    m.extra.bock = 0;
+  },
+  /** @param {import('../core/match.mjs').Match} m  @param {import('../core/match.mjs').DealRecord} record */
+  after(m, record) {
+    const r = record.result;
+    if (r.void) return { counts: true, sameDealer: false };
+    if (m.rules.scoring === 'list' && m.table === 4 && !r.won && !r.ramsch) {
+      const declarer = record.seats[r.declarer];
+      for (let seat = 0; seat < m.table; seat++) if (seat !== declarer) record.points[seat] = 30;
+    }
+    if (m.rules.bock) {
+      if (m.extra.bock > 0) m.extra.bock -= 1;
+      const tie = r.augen === 60;
+      const both = m.current?.doubled === 2;
+      m.extra.bock += ((tie ? 1 : 0) + (both ? 1 : 0)) * m.table;
+    }
+    return {};
+  },
+  /** @param {import('../core/match.mjs').Match} m */
+  multiplier(m) {
+    return m.rules.bock && m.extra.bock > 0 ? 2 : 1;
+  },
+};

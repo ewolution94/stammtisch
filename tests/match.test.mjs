@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { activeSeats, createMatch, endDeal, isOver, leaders, nextDeal } from '../server/core/match.mjs';
 import * as MauMau from '../server/games/maumau.mjs';
 import * as Doko from '../server/games/doppelkopf.mjs';
+import * as Skat from '../server/games/skat.mjs';
+import { botMove as skatBot } from '../server/bots/skat.mjs';
 import { botMove as mauBot } from '../server/bots/maumau.mjs';
 import { botMove as dokoBot } from '../server/bots/doppelkopf.mjs';
 import { seeded, throws } from './helpers.mjs';
@@ -170,4 +172,39 @@ test('Bock rounds (house rule): 120 : 120 or Re and Kontra both said, and the ne
   fakeDone(plain, { augen: { re: 120, kontra: 120 } });
   endDeal(Doko, plain);
   assert.equal(plain.extra.bock, 0);
+});
+
+test('Skat at four: the dealer sits out; a game everyone passed counts and the next player deals', () => {
+  const m = createMatch(Skat, { table: 4, dealer: 0 });
+  assert.deepEqual(activeSeats(Skat, m), [1, 2, 3]);
+  const s = nextDeal(Skat, m, seeded(3));
+  assert.equal(s.dealer, 2, 'the game’s Hinterhand is the dealer’s right');
+  Skat.act(s, 1, { type: 'pass' });
+  Skat.act(s, 2, { type: 'pass' });
+  Skat.act(s, 0, { type: 'pass' });
+  const record = endDeal(Skat, m);
+  assert.equal(record.counts, true);
+  assert.equal(m.counted, 1);
+  assert.equal(m.dealer, 1, 'nobody deals twice in a row');
+});
+
+test('the Skat list at four: a lost game gives each other player 30, the dealer too', () => {
+  const m = createMatch(Skat, { table: 4, dealer: 0, rules: { scoring: 'list' } });
+  m.seats = activeSeats(Skat, m);
+  m.current = { phase: 'done', doubled: 0, result: { won: false, declarer: 0, augen: 50, points: [-122, 40, 40] } };
+  const record = endDeal(Skat, m);
+  assert.deepEqual(record.points, [30, -122, 30, 30]);
+  assert.equal(m.totals.reduce((a, b) => a + b, 0), -32);
+});
+
+test('a whole Skat match of bots at three: every deal counted, the totals are the declarers’ results', () => {
+  const randomInt = seeded(31);
+  const m = createMatch(Skat, { table: 3, rounds: 3, rules: { scoring: 'list' } });
+  while (!isOver(Skat, m)) {
+    nextDeal(Skat, m, randomInt);
+    playDeal(Skat, skatBot, m, randomInt);
+    endDeal(Skat, m);
+  }
+  assert.equal(m.counted, 9);
+  assert.equal(m.history.length, 9);
 });
