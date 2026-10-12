@@ -1,0 +1,14 @@
+{
+  "name": "stammtisch",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The classic card games for the afternoon meeting at one table: Mau-Mau, Doppelkopf, Skat and more, unbranded, with a German deck you handle.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}
