@@ -47,11 +47,21 @@
   let now = $state(Date.now());
   $effect(() => {
     const wait = room.left(game.holdUntil);
+    // Every view moves the clock offset (network latency): read the clock again with it, or a slower
+    // view right after the pause could leave a stale `now` that says "still holding" with no timer
+    // left to clear it, and the hand never plays (Stichle's lock-up, 2026-10-13).
+    now = Date.now();
     if (wait <= 0) return;
     const timers = [wait - TRICK_REVEAL, wait].filter((ms) => ms > 0).map((ms) => setTimeout(() => (now = Date.now()), ms + 30));
     return () => timers.forEach(clearTimeout);
   });
   const holding = $derived(room.left(game.holdUntil, now) > 0);
+  // While it holds, the clock keeps ticking, so the hold always ends whatever the offset does.
+  $effect(() => {
+    if (!holding) return;
+    const tick = setInterval(() => (now = Date.now()), 400);
+    return () => clearInterval(tick);
+  });
   const revealed = $derived(trickPhase(room.left(game.holdUntil, now)) !== 'rest');
   const canPlay = $derived(Boolean(deal && myTurn && deal.phase === 'play' && !holding));
 
