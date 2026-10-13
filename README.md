@@ -2,8 +2,8 @@
 
 The classic card games for the afternoon meeting, at one table: Mau-Mau, Doppelkopf, Skat and
 Durak. Unbranded, played on phones beside the call, with a German deck you handle (Eichel, Grün,
-Herz, Schellen; the Unter, Ober and König as paper cuts, the numbers in letterpress). Local only for
-now; the plan is `development/plans/card-games.md`.
+Herz, Schellen; the Unter, Ober and König as paper cuts, the numbers in letterpress). The plan is
+`development/plans/card-games.md` in the workspace.
 
 - **Set a table, share the link.** A table gets a four-letter code and a link like
   `…/KXPT`, with a QR code. No accounts: a name and a seal are enough, and a reload puts you back in
@@ -145,3 +145,24 @@ node tools/qa.mjs http://localhost:6411      # one person and bots at each game 
 ```
 
 The QA script borrows Playwright from Folio's checkout next door (`../folio/node_modules`).
+
+## Deploy (NAS)
+
+This mirrors Stichle, Schätzle, Vollmond, Kritzle and CDNMS:
+
+- `ci.yml` runs the typecheck, the tests and the build, then smoke-tests the production server (page,
+  headers, a Mau-Mau table with a guest and a bot, the deal, the guest's own hand on their stream and
+  no hand on a stream without a player).
+- `docker-publish.yml` gates on `ci.yml`, then pushes `ghcr.io/ewolution94/stammtisch:latest` for
+  amd64 and arm64.
+- The shared Watchtower picks the image up. A push to `release` is the whole deploy, and it ends any
+  game in progress: don't push during the afternoon meeting.
+- The NAS runs `deploy/portainer-stack.yml`, on the port the workspace's registry holds for it, with
+  the health check in Stammtisch's slot (every 747 s, `plans/nas-load.md`).
+- The stack joins the external Docker network `ewolution`, where Census listens as `census:4901`.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` / `--port` | `8080` | Listen port |
+| `HOST` | `0.0.0.0` | Listen address |
+| `STAMMTISCH_CENSUS` | off | Census's ingest origin, `http://census:4901` on the NAS |

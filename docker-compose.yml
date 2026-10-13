@@ -1,0 +1,9 @@
+# For trying the image locally (it builds from source). The NAS runs deploy/portainer-stack.yml.
+services:
+  stammtisch:
+    build: .
+    image: ghcr.io/ewolution94/stammtisch:latest
+    container_name: stammtisch
+    restart: unless-stopped
+    ports:
+      - "8080:8080"

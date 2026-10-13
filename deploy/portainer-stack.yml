@@ -1,0 +1,43 @@
+# The Stammtisch stack Portainer runs on the NAS.
+#
+# This is deliberately NOT the repo's docker-compose.yml. That one carries `build: .`,
+# which would make Portainer compile the app on the NAS instead of pulling the image
+# CI already published. Paste this into Portainer's stack editor (or point a
+# Git-backed stack at this file), never that one.
+#
+# Auto-updates come from the shared Watchtower stack (clinch/deploy/watchtower-stack.yml),
+# which only touches containers carrying the label below. With it, a push to `release`
+# is the entire deploy. A deploy ends any game in progress (tables live in memory).
+
+services:
+  stammtisch:
+    image: ghcr.io/ewolution94/stammtisch:latest
+    container_name: stammtisch
+    restart: unless-stopped
+    ports:
+      # The port from the workspace's registry (development/.claude/skills/portainer/ports.json).
+      - "6500:6500"
+    environment:
+      - PORT=6500
+      - TZ=Europe/Berlin
+      # Visit counts: /_e and /_e.js are forwarded to Census over the `ewolution` network.
+      # Remove the line to stop counting; the page doesn't change either way.
+      - STAMMTISCH_CENSUS=http://census:4901
+    networks:
+      # The shared network Census listens on. It must exist before this stack is created
+      # (Portainer → Networks → `ewolution`).
+      - ewolution
+    healthcheck:
+      # Every ~10 minutes, each container on its own interval so they never line up (plans/nas-load.md).
+      interval: 747s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      # The opt-in the shared Watchtower looks for (it runs with
+      # WATCHTOWER_LABEL_ENABLE=true, so unlabelled containers are never touched).
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  ewolution:
+    external: true
