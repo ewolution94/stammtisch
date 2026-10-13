@@ -83,7 +83,9 @@ export function createApi({ games }) {
       res.end();
       return;
     }
-    const beat = setInterval(() => res.write(': ping\n\n'), HEARTBEAT);
+    // A named event the page sees (a comment never reaches it), so a stream that died silently is
+    // noticed (plans/live-connection.md). Its data mustn't be empty: an empty event is never dispatched.
+    const beat = setInterval(() => res.write('event: ping\ndata: 1\n\n'), HEARTBEAT);
     beat.unref?.();
     const done = () => {
       clearInterval(beat);
