@@ -290,6 +290,8 @@
     flex: none;
     width: 60px;
     aspect-ratio: 5 / 7;
+    /* The trump card's end sticks out to the right: room for it, so the bout never covers it. */
+    margin-inline-end: 30px;
   }
   .trumpcard {
     position: absolute;
