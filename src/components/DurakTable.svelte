@@ -88,20 +88,25 @@
   let sheetOpen = $state(false);
   let settingsOpen = $state(false);
 
-  // The bout's end, a moment longer: beaten off, or taken up.
-  let shownBout = $state(0);
+  // The bout's end, a moment longer: beaten off, or taken up. The timer's effect depends on the
+  // bout's number alone and reads nothing it writes: one that read its own guard re-ran, cleared its
+  // timer and never set it again, so "Bito" and the last bout stayed on the empty table (Workspace's
+  // audit, 2026-10-13). Every view reads the clock again too.
   let showUntil = $state(0);
   let now = $state(Date.now());
+  const boutN = $derived(deal?.lastBout?.n ?? 0);
   $effect(() => {
-    const b = deal?.lastBout;
-    if (b && b.n !== shownBout) {
-      shownBout = b.n;
-      showUntil = Date.now() + 1300;
-      const timer = setTimeout(() => (now = Date.now()), 1350);
-      return () => clearTimeout(timer);
-    }
+    if (!boutN) return;
+    showUntil = Date.now() + 1300;
+    now = Date.now();
+    const timer = setTimeout(() => (now = Date.now()), 1350);
+    return () => clearTimeout(timer);
   });
-  const ending = $derived(Boolean(deal?.lastBout && !deal.table.length && now < showUntil && deal.lastBout.n === shownBout));
+  $effect(() => {
+    void deal;
+    now = Date.now();
+  });
+  const ending = $derived(Boolean(deal?.lastBout && !deal.table.length && now < showUntil));
   const pairs = $derived(deal ? (deal.table.length || !ending ? deal.table : (deal.lastBout?.pairs ?? [])) : []);
 
   const status = $derived.by(() => {
