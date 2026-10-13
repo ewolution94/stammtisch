@@ -18,8 +18,55 @@
     <meta property="og:title" content="Stammtisch" />
     <meta property="og:description" content="Mau-Mau, Doppelkopf und Skat am Stammtisch." />
     <script src="/boot.js"></script>
+    <!-- splash:start (iOS launch images and the splash's look, written by development/plans/splash-rollout/launch.mjs) -->
+    <link rel="apple-touch-startup-image" href="/splash/dark-1320x2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-1260x2736.png" media="(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-1206x2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/dark-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <style>
+      /* The splash screen, written by development/plans/splash-rollout/launch.mjs: edit there, not here.
+         The pre-paint script turns it on in the installed app (or with ?splash) and takes it away. It starts
+         as the launch image left off: the mark, 120 pt, in the middle of the screen on the system's page
+         colour (iOS picks the launch image by the system's appearance, not the app's saved theme). Then
+         the mark makes its move, a glint crosses, and the splash fades into the app. Longhands only:
+         Vite's minifier turns an animation shorthand without a name into `animation: none`. The mark's
+         <svg> is 0 × 0 in the markup, so without this style (offline, a blocked file) nothing shows. */
+      #splash { display: none; }
+      .splash #splash { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; background: #5b1427; touch-action: none; }
+      #splash svg { width: 120px; height: 120px; translate: 0 calc(-1 * var(--splash-lift, 0px)); }
+      #splash :where(g[class], .trace) { transform-box: view-box; animation-duration: 560ms; animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1); animation-delay: 60ms; animation-fill-mode: both; }
+      #splash .gl { animation-name: splash-glint; animation-duration: 640ms; }
+      @keyframes splash-glint { to { transform: translateX(2000px); } }
+      #splash :is(.p0, .p2) { transform-origin: 512px 520px; }
+      #splash .p1 { transform-origin: 512px 820px; }
+      #splash .p2 > circle { transform-origin: 445px 331px; }
+      #splash :is(.p0, .p2) { animation-name: splash-sm-n; }
+      #splash .p1 { animation-name: splash-sm-c; }
+      #splash .p2 > circle { animation-duration: 560ms; animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1); animation-delay: 60ms; animation-fill-mode: both; animation-name: splash-sm-s; }
+      @keyframes splash-sm-n { 32% { transform: translateY(-96px) rotate(-4deg); } 58% { transform: translateY(10px) scale(1.02, 0.97); } 76% { transform: translateY(-3px); } 88% { transform: none; } }
+      @keyframes splash-sm-c { 52% { transform: none; } 62% { transform: scale(1.05, 0.93); } 80% { transform: scale(0.99, 1.01); } 90% { transform: none; } }
+      @keyframes splash-sm-s { 58% { transform: scale(0.5); } 82% { transform: scale(1.45); } }
+      .splash-out #splash { opacity: 0; pointer-events: none; transition: opacity 320ms ease; }
+      .splash-out #splash svg { scale: 1.08; transition: scale 320ms cubic-bezier(0.3, 0, 0.2, 1); }
+      @media (prefers-reduced-motion: reduce) {
+        #splash :where(g[class], .trace) { animation: none; }
+        .splash-out #splash { transition-duration: 200ms; }
+        .splash-out #splash svg { scale: none; }
+      }
+    </style>
+    <!-- splash:end -->
   </head>
   <body data-ewo-project="stammtisch">
+    <!-- splash-markup:start -->
+    <div id="splash" aria-hidden="true"><svg width="0" height="0" viewBox="0 0 1024 1024" aria-hidden="true"><defs><linearGradient id="gAstammtisch" x1="0.25" y1="0" x2="0.75" y2="1"><stop offset="0" stop-color="#7f2038"/><stop offset="1" stop-color="#4a0d1d"/></linearGradient><linearGradient id="wAstammtisch" gradientUnits="userSpaceOnUse" x1="0" y1="230" x2="0" y2="800"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#eef0f6"/></linearGradient><radialGradient id="sAstammtisch" cx="0.5" cy="-0.1" r="0.9"><stop offset="0" stop-color="#fff" stop-opacity="0.22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient><filter id="dAstammtisch" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="16" result="b"/><feOffset in="b" dy="14" result="o"/><feFlood flood-color="#22050d" flood-opacity="0.38" result="c"/><feComposite in="c" in2="o" operator="in" result="s"/><feMerge><feMergeNode in="s"/><feMergeNode in="SourceGraphic"/></feMerge></filter><clipPath id="cAstammtisch"><rect width="1024" height="1024" rx="232"/></clipPath></defs><g clip-path="url(#cAstammtisch)"><rect width="1024" height="1024" fill="url(#gAstammtisch)"/><rect width="1024" height="1024" fill="url(#sAstammtisch)"/><g filter="url(#dAstammtisch)"><g transform="translate(512 512) scale(1) translate(-512 -512)"><g class="p0"><g><path d="M512 178.4C537.4 203.8 671 254.7 671 394.6C671 470.9 651.9 509.1 626.5 534.5H397.5C372.1 509.1 353 470.9 353 394.6C353 254.7 486.6 203.8 512 178.4Z" fill="url(#wAstammtisch)" /></g></g><g class="p1"><g><path d="M302.1 515.4C295.8 655.4 384.8 757.1 512 763.5C639.2 757.1 728.2 655.4 721.9 515.4Z" fill="url(#wAstammtisch)" /><path d="M483.4 744.4H540.6V820.7H483.4Z" fill="url(#wAstammtisch)" /><clipPath id="stAstammtisch"><path d="M302.1 515.4C295.8 655.4 384.8 757.1 512 763.5C639.2 757.1 728.2 655.4 721.9 515.4Z"/></clipPath><g clip-path="url(#stAstammtisch)"><path d="M-60.4 521.8L257.6 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M257.6 521.8L-60.4 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M22.3 521.8L340.3 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M340.3 521.8L22.3 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M105 521.8L423 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M423 521.8L105 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M187.6 521.8L505.6 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M505.6 521.8L187.6 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M270.3 521.8L588.3 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M588.3 521.8L270.3 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M353 521.8L671 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M671 521.8L353 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M435.7 521.8L753.7 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M753.7 521.8L435.7 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M518.4 521.8L836.4 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M836.4 521.8L518.4 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M601 521.8L919 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M919 521.8L601 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M683.7 521.8L1001.7 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M1001.7 521.8L683.7 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M766.4 521.8L1084.4 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /><path d="M1084.4 521.8L766.4 792.1" fill="none" stroke="#4a0d1d" stroke-width="15.9" stroke-linecap="round" stroke-linejoin="round" /></g><path d="M295.8 510.7H728.2V532.9H295.8Z" fill="#4a0d1d" /></g></g><g class="p2"><circle cx="445.2" cy="331" r="30" fill="#f3dc94" /></g></g></g><defs><linearGradient id="glAstammtisch"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.38"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><g transform="translate(-1000 0)"><g class="gl"><rect x="352" y="-400" width="320" height="1824" fill="url(#glAstammtisch)" transform="rotate(20 512 512)"/></g></g></g></svg></div>
+    <!-- splash-markup:end -->
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
