@@ -130,18 +130,20 @@ var f = {
     color: var(--ewo-guide-accent-ink, var(--ewo-accent-ink));
     font-weight: 650;
   }
-  /* The dots: pills, the current one long. Each a 24 px button around its mark. */
+  /* The dots: all one size, the current one in the "on" colour (Stichle's user, 2026-10-13: a long
+     pill for the current page wasn't wanted). Each a 22 px button around its mark. */
   .dots { display: flex; align-items: center; gap: 2px; }
   .dot { display: grid; place-items: center; width: 22px; height: 32px; }
   .dot span {
     width: 7px;
     height: 7px;
-    border-radius: 999px;
-    background: var(--ewo-guide-dot, var(--ewo-fill-3));
-    transition: width var(--ewo-dur-2) var(--ewo-ease), background var(--ewo-dur-2) var(--ewo-ease);
+    border-radius: 50%;
+    /* Colour alone tells the current page now: muted text and full text are 3:1 apart and 3:1 off
+       the raised background, in light and dark (aria-current says it to a screen reader). */
+    background: var(--ewo-guide-dot, var(--ewo-fg-3));
+    transition: background var(--ewo-dur-2) var(--ewo-ease);
   }
-  .dot[aria-current='step'] { width: 30px; }
-  .dot[aria-current='step'] span { width: 22px; background: var(--ewo-guide-dot-on, var(--ewo-fg)); }
+  .dot[aria-current='step'] span { background: var(--ewo-guide-dot-on, var(--ewo-fg)); }
   @media (prefers-reduced-motion: reduce) { .dot span { transition: none; } }
   .live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 `, m = class extends e {
@@ -164,19 +166,21 @@ var f = {
 	#s;
 	#c = 0;
 	#l = 0;
-	#u = !1;
-	#d;
-	#f = null;
+	#u = null;
+	#d = 0;
+	#f = !1;
 	#p;
+	#m = null;
+	#h;
 	constructor() {
 		super(), this.root.innerHTML = "\n      <dialog part=\"dialog\" tabindex=\"-1\" autofocus aria-roledescription=\"guide\">\n        <div class=\"top\"><button class=\"skip\" part=\"skip\" type=\"button\"></button></div>\n        <div class=\"track\" part=\"track\"><slot></slot></div>\n        <p class=\"live\" aria-live=\"polite\"></p>\n        <footer part=\"footer\">\n          <button class=\"back\" part=\"back\" type=\"button\"></button>\n          <div class=\"dots\" part=\"dots\" role=\"group\"></div>\n          <button class=\"next\" part=\"next\" type=\"button\"></button>\n        </footer>\n      </dialog>";
 		let e = (e) => this.root.querySelector(e);
 		this.#e = e("dialog"), this.#t = e(".track"), this.#n = e("slot"), this.#r = e(".dots"), this.#i = e(".back"), this.#a = e(".next"), this.#o = e(".skip"), this.#s = e(".live"), this.#e.addEventListener("cancel", (e) => {
-			e.preventDefault(), this.#b();
+			e.preventDefault(), this.#C();
 		}), this.#e.addEventListener("click", (e) => {
-			e.target === this.#e && this.#b();
+			e.target === this.#e && this.#C();
 		}), this.#e.addEventListener("animationend", (e) => {
-			this.#u && e.target === this.#e && this.#S();
+			this.#f && e.target === this.#e && this.#T();
 		}), this.#e.addEventListener("keydown", (e) => {
 			if (!e.composedPath()[0].closest?.("input, textarea, select, [contenteditable]")) {
 				if (e.key === "ArrowRight") this.goTo(this.#c + 1);
@@ -184,27 +188,37 @@ var f = {
 				else return;
 				e.preventDefault();
 			}
-		}), this.#o.addEventListener("click", () => this.#b()), this.#i.addEventListener("click", () => this.goTo(this.#c - 1)), this.#a.addEventListener("click", () => {
-			if (this.#c < this.#m().length - 1) return this.goTo(this.#c + 1);
+		}), this.#o.addEventListener("click", () => this.#C()), this.#i.addEventListener("click", () => this.goTo(this.#c - 1)), this.#a.addEventListener("click", () => {
+			if (this.#c < this.#_().length - 1) return this.goTo(this.#c + 1);
 			this.emit("done"), this.close();
 		}), this.#r.addEventListener("click", (e) => {
 			let t = e.target.closest(".dot");
 			t && this.goTo(Number(t.dataset.i));
-		}), this.#n.addEventListener("slotchange", () => this.#_()), this.#t.addEventListener("scroll", () => {
+		}), this.#n.addEventListener("slotchange", () => this.#b()), this.#t.addEventListener("scroll", () => {
 			cancelAnimationFrame(this.#l), this.#l = requestAnimationFrame(() => {
-				let e = this.#t.clientWidth || 1, t = Math.round(this.#t.scrollLeft / e);
-				t !== this.#c && this.#v(t);
+				let e = this.#t.clientWidth || 1, t = this.#t.scrollLeft / e;
+				if (this.#u !== null) {
+					if (Math.abs(t - this.#u) > .01) return;
+					this.#g();
+				}
+				let n = Math.round(t);
+				n !== this.#c && this.#x(n);
 			});
 		});
+		for (let e of [
+			"pointerdown",
+			"touchstart",
+			"wheel"
+		]) this.#t.addEventListener(e, () => this.#g(), { passive: !0 });
 	}
 	connectedCallback() {
-		d(), this.#p = r(() => this.#_()), this.#_(), this.#x();
+		d(), this.#h = r(() => this.#b()), this.#b(), this.#w();
 	}
 	disconnectedCallback() {
-		this.#p?.(), this.#C();
+		this.#h?.(), this.#E();
 	}
 	attributeChangedCallback(e) {
-		e === "label" ? this.#e.setAttribute("aria-label", this.getAttribute("label") ?? "") : e === "open" ? this.isConnected && this.#x() : this.#_();
+		e === "label" ? this.#e.setAttribute("aria-label", this.getAttribute("label") ?? "") : e === "open" ? this.isConnected && this.#w() : this.#b();
 	}
 	get open() {
 		return this.flag("open");
@@ -222,59 +236,62 @@ var f = {
 		this.open = !1;
 	}
 	goTo(e) {
-		let t = this.#m().length;
+		let t = this.#_().length;
 		if (!t) return;
 		let n = Math.max(0, Math.min(t - 1, e));
 		if (n === this.#c && this.#t.scrollLeft === n * this.#t.clientWidth) return;
 		let r = a();
-		r && (this.#t.classList.remove("fading"), this.#t.offsetWidth, this.#t.classList.add("fading")), this.#t.scrollTo({
+		r && (this.#t.classList.remove("fading"), this.#t.offsetWidth, this.#t.classList.add("fading")), this.#u = n, clearTimeout(this.#d), this.#d = window.setTimeout(() => this.#g(), 1e3), this.#t.scrollTo({
 			left: n * this.#t.clientWidth,
 			behavior: r ? "instant" : "smooth"
-		}), this.#v(n);
+		}), r && this.#g(), this.#x(n);
 	}
-	#m() {
-		return this.#n.assignedElements();
-	}
-	#h() {
-		return f[i()];
-	}
-	#g(e) {
-		return e?.getAttribute("aria-label") ?? e?.querySelector("h1, h2, h3")?.textContent?.trim() ?? "";
+	#g() {
+		this.#u = null, clearTimeout(this.#d);
 	}
 	#_() {
-		let e = this.#h(), t = this.#m(), n = t.length;
-		this.#o.textContent = this.getAttribute("skip-label") ?? e.skip, this.#i.textContent = this.getAttribute("back-label") ?? e.back, this.#r.setAttribute("aria-label", e.pages), this.#r.replaceChildren(...t.map((t, r) => {
-			let i = document.createElement("button");
-			return i.type = "button", i.className = "dot", i.dataset.i = String(r), i.setAttribute("aria-label", `${e.page(r + 1, n)}${this.#g(t) ? `: ${this.#g(t)}` : ""}`), i.append(document.createElement("span")), i;
-		})), t.forEach((t, r) => {
-			t.setAttribute("role", "group"), t.setAttribute("aria-roledescription", i() === "de" ? "Seite" : "page"), !t.hasAttribute("aria-label") && !t.hasAttribute("aria-labelledby") && t.setAttribute("aria-label", this.#g(t) || e.page(r + 1, n));
-		}), this.#c = Math.min(this.#c, Math.max(0, n - 1)), this.#y(!1);
+		return this.#n.assignedElements();
 	}
-	#v(e) {
-		this.#c = e, this.#y(!0), this.emit("page", { index: e });
+	#v() {
+		return f[i()];
 	}
 	#y(e) {
-		let t = this.#h(), n = this.#m(), r = n.length, i = this.#c >= r - 1;
-		this.#i.hidden = this.#c === 0, this.#a.textContent = i ? this.getAttribute("done-label") ?? t.done : this.getAttribute("next-label") ?? t.next, this.#r.querySelectorAll(".dot").forEach((e, t) => {
-			t === this.#c ? e.setAttribute("aria-current", "step") : e.removeAttribute("aria-current");
-		}), n.forEach((e, t) => e.toggleAttribute("inert", t !== this.#c)), e && r && (this.#s.textContent = `${t.page(this.#c + 1, r)}: ${this.#g(n[this.#c])}`);
+		return e?.getAttribute("aria-label") ?? e?.querySelector("h1, h2, h3")?.textContent?.trim() ?? "";
 	}
 	#b() {
-		this.emit("cancel", void 0, !0) && this.close();
+		let e = this.#v(), t = this.#_(), n = t.length;
+		this.#o.textContent = this.getAttribute("skip-label") ?? e.skip, this.#i.textContent = this.getAttribute("back-label") ?? e.back, this.#r.setAttribute("aria-label", e.pages), this.#r.replaceChildren(...t.map((t, r) => {
+			let i = document.createElement("button");
+			return i.type = "button", i.className = "dot", i.dataset.i = String(r), i.setAttribute("aria-label", `${e.page(r + 1, n)}${this.#y(t) ? `: ${this.#y(t)}` : ""}`), i.append(document.createElement("span")), i;
+		})), t.forEach((t, r) => {
+			t.setAttribute("role", "group"), t.setAttribute("aria-roledescription", i() === "de" ? "Seite" : "page"), !t.hasAttribute("aria-label") && !t.hasAttribute("aria-labelledby") && t.setAttribute("aria-label", this.#y(t) || e.page(r + 1, n));
+		}), this.#c = Math.min(this.#c, Math.max(0, n - 1)), this.#S(!1);
 	}
-	#x() {
-		let e = this.#e;
-		this.open && !e.open ? (this.#u = !1, e.classList.remove("closing"), d(), this.#f = l(), e.showModal(), this.#d ??= o(), this.#t.scrollLeft = 0, this.#c = 0, this.#y(!0)) : !this.open && e.open && !this.#u && (this.#u = !0, e.classList.add("closing"), setTimeout(() => this.#u && this.#S(), 400));
+	#x(e) {
+		this.#c = e, this.#S(!0), this.emit("page", { index: e });
 	}
-	#S() {
-		this.#u = !1, this.#e.classList.remove("closing");
-		let e = !s();
-		e && c(this, this.root, this.#e), this.#e.open && this.#e.close();
-		let t = this.#f;
-		this.#f = null, u(t, this.#e, e), this.#C(), this.emit("close");
+	#S(e) {
+		let t = this.#v(), n = this.#_(), r = n.length, i = this.#c >= r - 1;
+		this.#i.hidden = this.#c === 0, this.#a.textContent = i ? this.getAttribute("done-label") ?? t.done : this.getAttribute("next-label") ?? t.next, this.#r.querySelectorAll(".dot").forEach((e, t) => {
+			t === this.#c ? e.setAttribute("aria-current", "step") : e.removeAttribute("aria-current");
+		}), n.forEach((e, t) => e.toggleAttribute("inert", t !== this.#c)), e && r && (this.#s.textContent = `${t.page(this.#c + 1, r)}: ${this.#y(n[this.#c])}`);
 	}
 	#C() {
-		this.#d?.(), this.#d = void 0;
+		this.emit("cancel", void 0, !0) && this.close();
+	}
+	#w() {
+		let e = this.#e;
+		this.open && !e.open ? (this.#f = !1, e.classList.remove("closing"), d(), this.#m = l(), e.showModal(), this.#p ??= o(), this.#g(), this.#t.scrollLeft = 0, this.#c = 0, this.#S(!0)) : !this.open && e.open && !this.#f && (this.#f = !0, e.classList.add("closing"), setTimeout(() => this.#f && this.#T(), 400));
+	}
+	#T() {
+		this.#f = !1, this.#e.classList.remove("closing");
+		let e = !s();
+		e && c(this, this.root, this.#e), this.#e.open && this.#e.close();
+		let t = this.#m;
+		this.#m = null, u(t, this.#e, e), this.#E(), this.emit("close");
+	}
+	#E() {
+		this.#p?.(), this.#p = void 0;
 	}
 };
 n("ewo-guide", m);

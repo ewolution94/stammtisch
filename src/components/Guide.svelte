@@ -57,7 +57,9 @@
     --ewo-guide-fg-2: var(--on-cloth-2);
     --ewo-guide-accent: var(--paper);
     --ewo-guide-accent-ink: var(--ink);
-    --ewo-guide-dot: rgb(236 230 214 / 0.28);
+    /* With colour alone marking the page (Folio 8a5bd20: the dots are all one size), 0.5 gives about
+       4.4:1 on the wood and 3.2:1 under the gold (0.28 was about 2.2:1). */
+    --ewo-guide-dot: rgb(236 230 214 / 0.5);
     --ewo-guide-dot-on: var(--gold-hi);
   }
   ewo-guide::part(next) {

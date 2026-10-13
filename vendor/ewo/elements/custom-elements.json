@@ -974,6 +974,25 @@
             },
             {
               "kind": "field",
+              "name": "#heading",
+              "privacy": "private",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "description": "The page a goTo() scroll is on its way to; the pages it passes on the way don't count."
+            },
+            {
+              "kind": "field",
+              "name": "#headingTimer",
+              "privacy": "private",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "kind": "field",
               "name": "#closing",
               "privacy": "private",
               "type": {
@@ -1036,6 +1055,11 @@
                 }
               ],
               "description": "Turns to a page (clamped); at once, with a fade, under reduced motion."
+            },
+            {
+              "kind": "method",
+              "name": "#arrived",
+              "privacy": "private"
             },
             {
               "kind": "method",
