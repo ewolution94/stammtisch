@@ -96,7 +96,16 @@
   // The fan from the kit: few cards are held bigger, a full hand shrinks to fit (never below 58 px,
   // for Doppelkopf's twelve) and goes to two rows; a laptop's wider table lets them grow a little.
   const keys = $derived(items.filter((c) => c.key !== air?.key).map((c) => c.key));
-  const layout = $derived(fanLayout(keys, { width, count: cards.length, sizes: width > 600 ? [124, 112, 100] : [104, 92, 84], min: 58 }));
+  const sizes = $derived<[number, number, number]>(width > 600 ? [124, 112, 100] : [104, 92, 84]);
+  // The hand's box keeps one height all game: the tallest any hand gets at this width (a few cards,
+  // held big), with the cards at its foot. A card leaving the hand or one drawn changes their size,
+  // never the box, so the table above never moves (Stichle e28b833; the user, 2026-10-13: "it cannot
+  // jump").
+  const room = $derived(
+    Math.max(...Array.from({ length: 20 }, (_, i) => fanLayout(Array.from({ length: i + 1 }, (_, k) => `${k}`), { width, count: i + 1, sizes, min: 58 }).height)),
+  );
+  const natural = $derived(fanLayout(keys, { width, count: cards.length, sizes, min: 58 }));
+  const layout = $derived(fanLayout(keys, { width, count: cards.length, sizes, min: 58, top: 22 + room - natural.height }));
   const cw = $derived(layout.cw);
   const height = $derived(layout.height);
   const places = $derived(layout.places);

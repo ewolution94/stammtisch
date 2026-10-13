@@ -193,9 +193,10 @@
       {/if}
     </div>
 
-    {#if mine >= 0 && deal?.hand}
+    <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
+    {#if mine >= 0}
       <Hand
-        cards={deal.hand}
+        cards={deal?.hand ?? []}
         {legal}
         canPlay={legal.length > 0}
         onplay={(card) => lay(card)}

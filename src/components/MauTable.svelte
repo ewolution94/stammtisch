@@ -233,17 +233,18 @@
       {/if}
     </div>
 
-    {#if mine >= 0 && deal?.hand}
+    <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
+    {#if mine >= 0}
       <Hand
-        cards={deal.hand}
-        legal={deal.playable}
+        cards={deal?.hand ?? []}
+        legal={deal?.playable ?? []}
         canPlay={myTurn}
         onplay={(card) => play(card)}
         {target}
         oninspect={inspect}
         onrefuse={refused}
         intercept={(card) => (wishes(card) ? ((wishing = card), true) : false)}
-        marked={deal.drawn}
+        marked={deal?.drawn ?? null}
       />
     {:else}
       <p class="watching">{t('watchingGame')}</p>

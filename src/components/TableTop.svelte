@@ -20,8 +20,13 @@
 <header class="top">
   <div class="what">
     <span class="label on-cloth">{title} · {t('dealOf', { n: dealNo, of: game.match.deals })}{#if game.match.factor > 1}<b class="bock">Bock ×{game.match.factor}</b>{/if}</span>
-    {#if sub}<span class="sub display">{sub}</span>{/if}
-    {#if extra}<span class="extra">{extra}</span>{/if}
+    <!-- The contract and the calls share one line, so the bar never grows when a call is made. -->
+    {#if sub || extra}
+      <span class="row">
+        {#if sub}<span class="sub display">{sub}</span>{/if}
+        {#if extra}<span class="extra">{extra}</span>{/if}
+      </span>
+    {/if}
   </div>
   <div class="tools">
     <button class="tool" type="button" onclick={onsheet} aria-label={t('scoreSheet')}>
@@ -33,7 +38,10 @@
 </header>
 
 <style>
+  /* One height whatever it says, so the table below never moves (the user, 2026-10-13: "it cannot
+     jump"). */
   .top {
+    flex: none;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -47,7 +55,14 @@
     gap: 2px;
     min-width: 0;
   }
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
   .sub {
+    min-width: 0;
     overflow: hidden;
     font-size: 18px;
     line-height: 1.15;
@@ -56,6 +71,7 @@
     white-space: nowrap;
   }
   .extra {
+    flex: none;
     font: 600 12px/1.2 var(--ewo-sans);
     color: var(--gold-hi);
   }

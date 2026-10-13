@@ -32,6 +32,28 @@ async function person(name) {
       // The table's guide opens once on a first visit: seen already.
       localStorage.setItem('stammtisch:guide', '1');
     } catch {}
+    // The table never changes size or place while you play (the user, 2026-10-13, on Stichle: "it
+    // cannot jump"): every frame, the felt, the middle, your place card and your hand's box are
+    // measured, and any move is written down with what the status line said (Stichle's check).
+    const watched = ['.table .cloth', '.table .middle', '.table .dock > div.mine', '.table .hand'];
+    const last = new Map();
+    window.__jumps = [];
+    const look = () => {
+      for (const sel of watched) {
+        const el = document.querySelector(sel);
+        if (!el) {
+          last.delete(sel);
+          continue;
+        }
+        const r = el.getBoundingClientRect();
+        const now = [r.left, r.top, r.width, r.height].map(Math.round).join(',');
+        const was = last.get(sel);
+        if (was && was !== now) window.__jumps.push(`${sel}: ${was} → ${now} (${document.querySelector('.status, .toast')?.textContent ?? (document.querySelector('.panel') ? 'panel' : '-')})`);
+        last.set(sel, now);
+      }
+      requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
   }, LANG);
   const page = await context.newPage();
   page.on('console', (m) => m.type() === 'error' && problems.push(`${name} console: ${m.text()}`));
@@ -208,6 +230,10 @@ for (const game of GAMES) {
   await api(host.page, `/api/rooms/${seat.code}/stop`, {}, seat.token);
   await host.page.waitForSelector('.final', { timeout: 5000 }).catch(() => problems.push(`${game}: no final screen`));
   await snap(host, `${game}-final`);
+  for (const p of people) {
+    const jumps = await p.page.evaluate(() => window.__jumps);
+    if (jumps.length) problems.push(`${p.name}: the table moved ${jumps.length}×:\n  ${[...new Set(jumps)].slice(0, 12).join('\n  ')}`);
+  }
   for (const guest of people.slice(1)) {
     await guest.page.waitForSelector('.final', { timeout: 5000 }).catch(() => problems.push(`${game}: the guest saw no final screen`));
     await snap(guest, `${game}-guest-final`);
