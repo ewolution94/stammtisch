@@ -7,6 +7,8 @@ import type { Suit } from './deck';
 export type Phase = 'lobby' | 'play' | 'final' | 'gone';
 export type ClockChoice = 'off' | 'relaxed' | 'quick';
 export type GameId = 'maumau' | 'doppelkopf' | 'skat' | 'durak';
+/** The games, in the order the user chose them (2026-10-13). */
+export const GAMES: GameId[] = ['maumau', 'doppelkopf', 'skat', 'durak'];
 /** A card id, the French way whatever the deck shows: "h-10", "c-Q" (an Eichel-Ober), "d-A". */
 export type CardId = string;
 

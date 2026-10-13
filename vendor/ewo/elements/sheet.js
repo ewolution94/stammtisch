@@ -1,7 +1,8 @@
 import { EwoElement as e, css as t, define as n, reducedMotion as r } from "./base.js";
 import { lockScroll as i } from "./scroll-lock.js";
+import { lastInputWasKey as a, letGo as o, openerNow as s, returnFocus as c, trackInput as l } from "./modal-focus.js";
 //#region packages/elements/src/sheet.ts
-var a = t`
+var u = t`
   :host { display: contents; }
 
   dialog {
@@ -111,23 +112,8 @@ var a = t`
     dialog:not(.with-footer) .body { padding-bottom: calc(env(safe-area-inset-bottom) + 76px); }
     footer { padding-bottom: calc(env(safe-area-inset-bottom) + 76px); }
   }
-`, o = !1, s = null, c = !1;
-function l() {
-	c || (c = !0, addEventListener("keydown", (e) => !e.metaKey && !e.ctrlKey && !e.altKey && (o = !0), !0), addEventListener("pointerdown", () => o = !1, !0), addEventListener("click", (e) => {
-		let t = e.composedPath().find((e) => e instanceof HTMLElement && e.matches("button, a[href], summary, [role='button'], [tabindex]"));
-		t && (s = {
-			el: t,
-			at: performance.now()
-		});
-	}, !0));
-}
-function u() {
-	let e = document.activeElement;
-	for (; e?.shadowRoot?.activeElement;) e = e.shadowRoot.activeElement;
-	return e && e !== document.body ? e : null;
-}
-var d = class extends e {
-	static styles = [a];
+`, d = class extends e {
+	static styles = [u];
 	static observedAttributes = ["open", "label"];
 	#e;
 	#t = !1;
@@ -189,7 +175,7 @@ var d = class extends e {
 	}
 	#s() {
 		let e = this.#e;
-		if (this.open && !e.open) this.#t = !1, e.classList.remove("closing"), e.style.setProperty("--drag", "0px"), l(), this.#a = u() ?? (s && performance.now() - s.at < 1e3 ? s.el : null), e.showModal(), this.#n ??= i();
+		if (this.open && !e.open) this.#t = !1, e.classList.remove("closing"), e.style.setProperty("--drag", "0px"), l(), this.#a = s(), e.showModal(), this.#n ??= i();
 		else if (!this.open && e.open && !this.#t) {
 			if (r()) return this.#c();
 			this.#t = !0, e.classList.add("closing"), setTimeout(() => this.#t && this.#c(), 450);
@@ -197,18 +183,15 @@ var d = class extends e {
 	}
 	#c() {
 		this.#t = !1, this.#e.classList.remove("closing");
-		let e = !o;
+		let e = !a();
 		e && this.#l(), this.#e.open && this.#e.close(), this.#u(e), this.#d(), this.emit("close");
 	}
 	#l() {
-		let e = u();
-		e && (e === this.#e || this.contains(e) || this.root.contains(e)) && e.blur();
+		o(this, this.root, this.#e);
 	}
 	#u(e) {
 		let t = this.#a;
-		if (this.#a = null, !t?.isConnected) return;
-		let n = u();
-		(!n || n === this.#e) && t.focus({ focusVisible: !e });
+		this.#a = null, c(t, this.#e, e);
 	}
 	#d() {
 		this.#n?.(), this.#n = void 0;

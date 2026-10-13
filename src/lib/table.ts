@@ -3,6 +3,8 @@
 // the deal's own (the game's seats, the dealer's left first); a watcher, or the dealer sitting a deal
 // out, sees it from the first seat. From Stichle's src/lib/table.ts.
 
+import { cardTwist, pileCardWidth, placeOf as kitPlaceOf, seatAngle, stackPlace, sweepTo, trickSlot } from '../../vendor/ewo/elements/card-pile.js';
+
 let uid = 0;
 /** A fresh id for one drawn card, so its foil gradients never clash with another card's. */
 export const nextUid = () => ++uid;
@@ -10,42 +12,29 @@ export const nextUid = () => ++uid;
 /** The seat at the bottom of this page's table. */
 export const homeSeat = (mine: number) => (mine >= 0 ? mine : 0);
 
-/** A seat's place: 0 is you, then 1, 2 … in the order play goes. */
-export const placeOf = (seat: number, mine: number, n: number) => (seat - homeSeat(mine) + n) % n;
+// The table's geometry comes from Folio's card kit (vendor/ewo/elements/card-pile.js), under the names
+// the components use.
 
-/**
- * The direction a seat sits in, in degrees (0 = right, 90 = down): you at 90, the others spread from
- * the left (180) over the top (270) to the right (360).
- */
-export function angleOf(seat: number, mine: number, n: number) {
-  const place = placeOf(seat, mine, n);
-  return place === 0 ? 90 : 180 + (place * 180) / n;
-}
+/** A seat's place: 0 is you, then 1, 2 … in the order play goes. */
+export const placeOf = (seat: number, mine: number, n: number) => kitPlaceOf(seat, homeSeat(mine), n);
+
+/** The direction a seat sits in, in degrees (0 = right, 90 = down): you at 90, the others from the left over the top to the right. */
+export const angleOf = (seat: number, mine: number, n: number) => seatAngle(seat, mine, n);
 
 /** A steady twist for a card on the pile (from its id, so every page agrees), so a trick looks dropped. */
-export function twist(card: string, seat: number) {
-  let h = seat * 7919;
-  for (const ch of card) h = (h * 31 + ch.charCodeAt(0)) | 0;
-  return ((Math.abs(h) % 2200) / 100 - 11).toFixed(1);
-}
+export const twist = (card: string, seat: number) => cardTwist(card, seat).toFixed(1);
 
 /** How big a card is on the pile in the middle, for a trick area of w × h px. */
-export const trickCardWidth = (w: number, h: number, cap = w > 600 ? 120 : 100) => Math.round(Math.min(cap, w * 0.27, (h * 0.5) / 1.4));
+export const trickCardWidth = (w: number, h: number, cap?: number) => pileCardWidth(w, h, cap);
 
-/**
- * Where a seat's card lies on the pile, from the area's centre: a stack, each card nudged towards the
- * seat that played it, about a third of a card, which keeps one of its corner indices in view.
- */
-export function slotOffset(angle: number, cardWidth: number) {
-  const rad = (angle * Math.PI) / 180;
-  return { dx: Math.cos(rad) * cardWidth * 0.36, dy: Math.sin(rad) * cardWidth * 1.4 * 0.27 };
-}
+/** Where a seat's card lies on the pile, from the area's centre (nudged a third of a card towards its seat). */
+export const slotOffset = (angle: number, cardWidth: number) => trickSlot(angle, cardWidth);
 
 /** Off the table towards a seat: where a taken trick sweeps to. */
-export function sweepOffset(angle: number, w: number, h: number) {
-  const rad = (angle * Math.PI) / 180;
-  return { dx: Math.cos(rad) * w * 0.75, dy: Math.sin(rad) * h * 0.75 };
-}
+export const sweepOffset = (angle: number, w: number, h: number) => sweepTo(angle, w, h);
+
+/** A card on Mau-Mau's discard pile: a little off-centre and askew, the same on every page. */
+export { stackPlace };
 
 /**
  * A hand's cards with a key each that stays put while they're held: Doppelkopf has every card twice,

@@ -5,7 +5,8 @@
   it agrees (learnings/ui-preferences.md → "A control answers the tap"). From Stichle's Lobby.svelte.
 -->
 <script lang="ts">
-  import { ApiError, type Config, type GameId, type Player, type Rules, type Settings, type View } from '../lib/api';
+  import { ui } from '../lib/ui.svelte';
+  import { ApiError, GAMES, type Config, type GameId, type Player, type Rules, type Settings, type View } from '../lib/api';
   import type { Avatar as AvatarValue } from '../lib/avatar';
   import { errorText, t, type Key } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
@@ -21,7 +22,6 @@
   const MAX = $derived(config?.seats ?? 6);
   const SECONDS = $derived(config?.moveSeconds ?? { relaxed: 60, quick: 25 });
   const ROUNDS = $derived(config?.rounds ?? [1, 2, 3, 4, 6]);
-  const GAMES: GameId[] = ['maumau', 'doppelkopf', 'skat', 'durak'];
   const TABLE: Record<GameId, { min: number; max: number }> = { maumau: { min: 2, max: 6 }, doppelkopf: { min: 4, max: 6 }, skat: { min: 3, max: 4 }, durak: { min: 2, max: 6 } };
 
   /**
@@ -238,6 +238,7 @@
       {/each}
     </div>
     <p class="hint">{t(`gameHint_${game}`)}</p>
+    <button class="btn quiet small howto" type="button" onclick={() => (ui.guide = game)}>{t('guideOf', { game: t(`game_${game}`) })}</button>
   </section>
 
   <section class="sheet seats">
@@ -374,6 +375,13 @@
     flex-direction: column;
     gap: 10px;
     padding: 20px 20px 18px;
+  }
+  .howto {
+    align-self: flex-start;
+    padding-inline: 2px;
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-underline-offset: 4px;
   }
   .coderow {
     display: flex;

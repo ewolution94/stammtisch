@@ -77,15 +77,14 @@ const STRINGS = {
     changeAvatar: 'Siegel ändern',
     avatar: 'Siegel',
 
-    rules: 'Spielregeln',
-    rulesMau:
-      'Zwei bis sechs, fünf Karten jede. Leg eine Karte, die zur obersten passt: dieselbe Farbe oder derselbe Wert. Passt keine, zieh eine. Die 7: Der Nächste zieht zwei (eine 7 drauf gibt es weiter). Die 8: Der Nächste setzt aus. Der Unter geht auf alles und wünscht eine Farbe. Vor der vorletzten Karte: „Mau!“. Wer zuerst keine Karte mehr hat, gewinnt.',
-    rulesDoko:
-      'Vier spielen, 48 Karten, zwölf jede. Wer einen Eichel-Ober hat, spielt Re, die anderen Kontra; wer zu wem gehört, zeigt sich erst im Spiel. Trumpf sind die Herz-Zehnen (die Dullen), die Ober, die Unter und Schellen. Wer 121 Augen holt, gewinnt. Ansagen (Re, Kontra, keine 90 …) machen es teurer. Dazu Hochzeit und Solos, nach den Regeln des Deutschen Doppelkopf-Verbands.',
-    rulesSkat:
-      'Drei spielen, 32 Karten, zehn jede, zwei im Skat. Gereizt wird um das Spiel: Wer am höchsten reizt, spielt allein gegen die beiden anderen, mit dem Skat oder aus der Hand. Farbspiel, Grand oder Null; mit 61 Augen ist das Spiel gewonnen. Nach der Internationalen Skatordnung.',
-    rulesHandling:
-      'Deine Karten hältst du als Fächer: Fahr mit dem Daumen darüber, zieh eine Karte nach oben oder schnipp sie auf den Tisch, oder tipp sie zweimal an. Halte eine Karte gedrückt, um sie groß anzusehen.',
+    guide: 'So geht’s',
+    guideTable: 'So geht der Tisch',
+    guideTableShort: 'Der Tisch',
+    guideOf: '{game}: so geht’s',
+    guideNext: 'Weiter',
+    guideBack: 'Zurück',
+    guideSkip: 'Überspringen',
+    guideDone: 'Los geht’s',
 
     table: 'Tisch',
     copyLink: 'Link kopieren',
@@ -99,8 +98,6 @@ const STRINGS = {
     game_durak: 'Durak',
     gamePlayers_durak: '2 bis 6',
     gameHint_durak: 'Wer am Ende noch Karten hat, ist der Durak.',
-    rulesDurak:
-      '36 Karten (6 bis Daus), sechs jede; die nächste Karte liegt offen unter dem Stapel und bestimmt Trumpf. Der Angreifer legt eine Karte, der Verteidiger sticht sie: höher in derselben Farbe, oder mit Trumpf. Alle anderen dürfen Karten der Werte nachlegen, die schon auf dem Tisch liegen. Sticht er alles, ist er dran mit Angreifen; sonst nimmt er alles auf. Danach zieht jede auf sechs nach. Wer zuletzt noch Karten hat, ist der Durak.',
     rule_durak_transfer: 'Weiterschieben',
     ruleHint_durak_transfer: 'Mit einer Karte desselben Werts gibt der Verteidiger den Angriff weiter.',
     rule_durak_throwIn: 'Wer legt nach?',
@@ -526,15 +523,14 @@ const STRINGS = {
     changeAvatar: 'Change seal',
     avatar: 'Seal',
 
-    rules: 'How to play',
-    rulesMau:
-      'Two to six, five cards each. Lay a card that matches the top one: the same suit or the same value. If none fits, draw one. The 7: the next player draws two (another 7 passes it on). The 8: the next player misses a turn. The Under goes on anything and wishes a suit. Before your second-to-last card: “Mau!”. First with no cards wins.',
-    rulesDoko:
-      'Four play, 48 cards, twelve each. Whoever holds an Over of Acorns plays Re, the others Kontra; who’s with whom only shows in play. Trumps are the Ten of Hearts (the Dullen), the Overs, the Unders and Bells. 121 points win. Announcements (Re, Kontra, no 90 …) raise the stakes. Weddings and solos too, to the German Doppelkopf Association’s rules.',
-    rulesSkat:
-      'Three play, 32 cards, ten each, two in the Skat. Players bid for the game: the highest bidder plays alone against the other two, with the Skat or from the hand. A suit game, Grand or Null; 61 points win. To the International Skat Rules.',
-    rulesHandling:
-      'You hold your cards as a fan: run a thumb along it, drag a card up or flick it onto the table, or tap it twice. Hold a card to look at it big.',
+    guide: 'How to play',
+    guideTable: 'How the table works',
+    guideTableShort: 'The table',
+    guideOf: 'How to play {game}',
+    guideNext: 'Next',
+    guideBack: 'Back',
+    guideSkip: 'Skip',
+    guideDone: 'Let’s play',
 
     table: 'Table',
     copyLink: 'Copy link',
@@ -548,8 +544,6 @@ const STRINGS = {
     game_durak: 'Durak',
     gamePlayers_durak: '2 to 6',
     gameHint_durak: 'Whoever is left holding cards is the Durak, the fool.',
-    rulesDurak:
-      '36 cards (6 to Ace), six each; the next card lies face up under the stock and sets trumps. The attacker lays a card, the defender beats it: higher in the same suit, or with a trump. Everyone else may throw in cards of values already on the table. Beat them all and you attack next; otherwise you take everything. Then everyone draws back up to six. The last one holding cards is the Durak.',
     rule_durak_transfer: 'Passing on',
     ruleHint_durak_transfer: 'A card of the same value passes the attack on to the next player.',
     rule_durak_throwIn: 'Who throws in?',

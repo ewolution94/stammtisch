@@ -12,9 +12,13 @@ now; the plan is `development/plans/card-games.md`.
   wanted, and the game's house rules (each game's defaults are the official rules, or the user's
   picks). Bots fill the empty chairs; with more at the table than the game takes, the dealer sits
   out.
-- **Cards you handle,** from Stichle: your hand is a fan; drag a card up or flick it, or tap it
-  twice; a card you may not play shakes and drops back; hold one to look at it big (it tilts with the
-  phone). Picking several cards (the Skat to put back, poverty's three) is tapping them.
+- **Cards you handle,** Folio's card kit (from Stichle): your hand is a fan; drag a card up or flick
+  it, or tap it twice; a card you may not play shakes and drops back; hold one to look at it big (it
+  tilts with the phone). Picking several cards (the Skat to put back, poverty's three) is tapping
+  them.
+- **How to play:** full-screen pages (Folio's `<ewo-guide>`) for the table and for each game, drawn
+  with the game's own cards (`src/lib/guides.ts`). The table's opens once on a device's first
+  visit; each game's from the start page, the lobby and Settings.
 - **After each deal** its result in the game's own words, everyone's points, then the next deal once
   everyone has tapped on. The score sheet is a tap away; at the end the totals and their lines.
 
@@ -35,8 +39,10 @@ now; the plan is `development/plans/card-games.md`.
   server, no dependencies).
 - **`src/`**: the page (Svelte 5), adapted from Stichle's: `lib/deck.js` (the German deck, drawn in
   code), `components/MauTable`, `TrickTable` (Doppelkopf and Skat, with `DokoPanel` and
-  `SkatPanel`), `DurakTable`, `Hand`, `Trick`, `DealEnd`, `ScoreSheet`, `Final`, `Lobby`.
-- **`vendor/ewo/`**: Folio's shared tokens and elements, as Stichle vendored them (Folio b6d395e).
+  `SkatPanel`), `DurakTable`, `Hand`, `Trick`, `DealEnd`, `ScoreSheet`, `Final`, `Lobby`, `Guide`.
+- **`vendor/ewo/`**: Folio's shared tokens and elements with the card kit (fan, hand gestures, pile
+  geometry, tilt, paper grain) and `<ewo-guide>` (`npm run vendor -- stammtisch` in folio). Don't edit
+  them here.
 
 Card ids name the card the French way, whatever deck the page draws: `h-10`, `c-Q`, `d-A` (suits
 c Kreuz/Eichel, s Pik/Grün, h Herz, d Karo/Schellen; J Bube/Unter, Q Dame/Ober, A Ass/Daus).

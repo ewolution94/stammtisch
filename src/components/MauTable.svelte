@@ -11,7 +11,7 @@
   import { cardsText, dealNumber, suitName } from '../lib/games';
   import { errorText, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
-  import { twist } from '../lib/table';
+  import { stackPlace } from '../lib/table';
   import { actAt } from '../lib/waits';
   import { askTilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -77,10 +77,14 @@
   }
 
   let pileEl: HTMLDivElement | undefined = $state();
+  let pileWidth = $state(90);
+  /** Where a card lies on the discard pile (the kit's stackPlace): a little off-centre and askew, by its place in the pile. */
+  const laidAt = (card: string, index: number) => stackPlace(card, index, pileWidth);
   function target(card: string) {
     if (!pileEl) return null;
     const r = pileEl.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2, rot: Number(twist(card, deal?.piled ?? 0)), width: r.width };
+    const at = laidAt(card, deal?.piled ?? 0);
+    return { x: r.left + r.width / 2 + at.dx, y: r.top + r.height / 2 + at.dy, rot: at.r, width: r.width };
   }
 
   function refused() {
@@ -179,9 +183,10 @@
         {/each}
         <span class="count">{deal?.stock ?? 0}</span>
       </button>
-      <div class="pile" bind:this={pileEl}>
+      <div class="pile" bind:this={pileEl} bind:clientWidth={pileWidth}>
         {#each deal?.pile ?? [] as card, i (`${(deal?.piled ?? 0) - (deal?.pile.length ?? 0) + i}`)}
-          <span class="laid" style:rotate="{twist(card, (deal?.piled ?? 0) - (deal?.pile.length ?? 0) + i)}deg" style:z-index={i}><Card id={card} /></span>
+          {@const at = laidAt(card, (deal?.piled ?? 0) - (deal?.pile.length ?? 0) + i)}
+          <span class="laid" style:translate="{at.dx.toFixed(1)}px {at.dy.toFixed(1)}px" style:rotate="{at.r.toFixed(1)}deg" style:z-index={i}><Card id={card} /></span>
         {/each}
         {#if deal?.wish}<span class="wish" aria-label={t('mauWishTop', { suit: suitName(deal.wish) })}>{@html signSvg(deal.wish)}</span>{/if}
         {#if deal?.penalty}<span class="penalty">+{deal.penalty}</span>{/if}

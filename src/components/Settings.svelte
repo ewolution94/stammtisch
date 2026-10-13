@@ -12,6 +12,7 @@
   import type { Room } from '../lib/room.svelte';
   import { play, setSound, sound } from '../lib/sound.svelte';
   import { actAt } from '../lib/waits';
+  import { ui } from '../lib/ui.svelte';
 
   let {
     open,
@@ -97,6 +98,10 @@
           </div>
           {#if !isHost}<p class="hint">{t('endHint', { name: hostName })}</p>{/if}
         {/if}
+        {#if view?.game}
+          {@const id = view.game.id}
+          <button class="btn quiet howto" type="button" onclick={() => (onclose(), (ui.guide = id))}>{t('guideOf', { game: t(`game_${id}`) })}</button>
+        {/if}
         {#if error}<p class="error" role="alert">{error}</p>{/if}
       </section>
     {/if}
@@ -126,6 +131,9 @@
 </ewo-sheet>
 
 <style>
+  .howto {
+    align-self: flex-start;
+  }
   section {
     display: flex;
     flex-direction: column;

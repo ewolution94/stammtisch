@@ -29,6 +29,8 @@ async function person(name) {
   await context.addInitScript((lang) => {
     try {
       localStorage.setItem('ewo:lang', lang);
+      // The table's guide opens once on a first visit: seen already.
+      localStorage.setItem('stammtisch:guide', '1');
     } catch {}
   }, LANG);
   const page = await context.newPage();

@@ -1,14 +1,25 @@
 <!--
   The start: who you are (a seal and your name), then a new table, or a table by its code. The game
-  is picked at the table, in the lobby. From Stichle's Home.svelte.
+  is picked at the table, in the lobby. How to play: the table's guide and each game's (Guide.svelte);
+  the table's opens once on a device's first visit. From Stichle's Home.svelte.
 -->
 <script lang="ts">
-  import { api, ApiError, CODE, type Seat } from '../lib/api';
+  import { api, ApiError, CODE, GAMES, type Seat } from '../lib/api';
   import type { Avatar } from '../lib/avatar';
   import { errorText, t } from '../lib/i18n.svelte';
   import { saveAvatar, savedAvatar, savedName } from '../lib/session';
   import { newKey, waitAt } from '../lib/waits';
   import AvatarMaker from './AvatarMaker.svelte';
+  import { firstVisit } from '../../vendor/ewo/elements/guide.js';
+  import type { GuideId } from '../lib/guides';
+  import { ui } from '../lib/ui.svelte';
+
+  // A device's first visit opens how the table works, once (Folio's firstVisit: never again, and
+  // never when storage is unavailable).
+  $effect(() => {
+    if (firstVisit('stammtisch:guide')) ui.guide = 'table';
+  });
+  const guides: GuideId[] = ['table', ...GAMES];
 
   let {
     oncreate,
@@ -80,18 +91,14 @@
     </div>
   </form>
 
-  <details class="rules on-cloth">
-    <summary class="label">{t('rules')}</summary>
-    <h3 class="display">Mau-Mau</h3>
-    <p>{t('rulesMau')}</p>
-    <h3 class="display">Doppelkopf</h3>
-    <p>{t('rulesDoko')}</p>
-    <h3 class="display">Skat</h3>
-    <p>{t('rulesSkat')}</p>
-    <h3 class="display">Durak</h3>
-    <p>{t('rulesDurak')}</p>
-    <p class="soft">{t('rulesHandling')}</p>
-  </details>
+  <nav class="guides on-cloth" aria-label={t('guide')}>
+    <span class="label">{t('guide')}</span>
+    <div class="chips">
+      {#each guides as g (g)}
+        <button class="btn paper small" type="button" onclick={() => (ui.guide = g)}>{g === 'table' ? t('guideTableShort') : t(`game_${g}`)}</button>
+      {/each}
+    </div>
+  </nav>
 </div>
 
 <style>
@@ -143,26 +150,15 @@
     letter-spacing: 0.3em;
     text-transform: uppercase;
   }
-  .rules {
+  .guides {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     padding: 0 4px;
   }
-  .rules summary {
-    cursor: pointer;
-    width: fit-content;
-  }
-  .rules h3 {
-    margin: 14px 0 0;
-    font-size: 18px;
-    color: var(--on-cloth);
-  }
-  .rules p {
-    margin: 6px 0 0;
-    font-size: 14px;
-    line-height: 1.55;
-    color: var(--on-cloth);
-  }
-  .rules .soft {
-    margin-top: 14px;
-    color: var(--on-cloth-2);
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 </style>

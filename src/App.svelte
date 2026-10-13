@@ -9,6 +9,7 @@
   import Join from './components/Join.svelte';
   import Game from './components/Game.svelte';
   import Footer from './components/Footer.svelte';
+  import Guide from './components/Guide.svelte';
 
   // The whole app is one page. "/" is the start; "/KXPT" is a table, and the link people share.
   let path = $state(location.pathname);
@@ -140,6 +141,9 @@
 </main>
 
 {#if !playing}<Footer />{/if}
+
+<!-- How to play: the table's or a game's, opened from anywhere (src/lib/ui.svelte.ts). -->
+<Guide />
 
 <!-- A room that's gone (a deploy, or forgotten) closed its stream on purpose: no pill, nothing to reconnect. -->
 {#if room?.view?.phase !== 'gone'}
