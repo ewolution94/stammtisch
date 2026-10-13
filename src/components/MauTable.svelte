@@ -8,7 +8,7 @@
 <script lang="ts">
   import { ApiError, type MauDeal, type View } from '../lib/api';
   import { SUITS, sign, INKS, TINT, parse, type Suit } from '../lib/deck';
-  import { cardsText, suitName } from '../lib/games';
+  import { cardsText, dealNumber, suitName } from '../lib/games';
   import { errorText, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
   import { twist } from '../lib/table';
@@ -109,11 +109,12 @@
     lastEvent = events[events.length - 1].n;
     if (first) return;
     for (const e of fresh) {
-      if (e.type === 'skip' && typeof e.seat === 'number') say(t('mauSkipped', { name: tableName(e.seat) }), 2200);
+      const me = typeof e.seat === 'number' && game.seats[e.seat] === view.me;
+      if (e.type === 'skip' && typeof e.seat === 'number') say(me ? t('mauSkippedYou') : t('mauSkipped', { name: tableName(e.seat) }), 2200);
       else if (e.type === 'reverse') say(t('mauReversed'), 2000);
-      else if (e.type === 'forgot' && typeof e.seat === 'number') say(t('mauForgot', { name: tableName(e.seat) }), 2600);
+      else if (e.type === 'forgot' && typeof e.seat === 'number') say(me ? t('mauForgotYou') : t('mauForgot', { name: tableName(e.seat) }), 2600);
       else if (e.type === 'reshuffle') say(t('mauReshuffle'), 2000);
-      else if (e.type === 'draw' && e.penalty && typeof e.seat === 'number') say(t('mauDrewPenalty', { name: tableName(e.seat), n: Number(e.count) }), 2200);
+      else if (e.type === 'draw' && e.penalty && typeof e.seat === 'number') say(me ? t('mauDrewPenaltyYou', { n: Number(e.count) }) : t('mauDrewPenalty', { name: tableName(e.seat), n: Number(e.count) }), 2200);
     }
   });
 
@@ -129,7 +130,7 @@
   });
 
   const top = $derived(deal?.pile.at(-1) ?? null);
-  const dealNo = $derived(Math.min(game.match.counted + 1, game.match.deals));
+  const dealNo = $derived(dealNumber(game));
   const sub = $derived.by(() => {
     if (!deal) return '';
     if (deal.penalty) return t('mauPenaltyTop', { n: deal.penalty });
@@ -150,7 +151,7 @@
             {room}
             player={playerAt(seat)}
             compact
-            line={cardsText(deal?.counts[seat] ?? 0)}
+            line={deal ? cardsText(deal.counts[seat]) : ''}
             tags={[...(deal?.said[seat] ? [{ text: 'Mau!', tone: 'gold' as const }] : []), ...(deal?.skipped === seat ? [{ text: t('mauSkipTag') }] : [])]}
             total={game.match.totals[game.dealSeats[seat]] ?? 0}
             dealer={deal?.dealer === seat}
@@ -223,7 +224,7 @@
 
     <div class="mine">
       {#if mine >= 0}
-        <SeatChip {room} player={playerAt(mine)} me line={cardsText(deal?.hand?.length ?? 0)} tags={deal?.said[mine] ? [{ text: 'Mau!', tone: 'gold' }] : []} total={game.match.totals[game.dealSeats[mine]] ?? 0} dealer={deal?.dealer === mine} active={myTurn} endsAt={game.endsAt} />
+        <SeatChip {room} player={playerAt(mine)} me line={deal ? cardsText(deal.hand?.length ?? 0) : ''} tags={deal?.said[mine] ? [{ text: 'Mau!', tone: 'gold' }] : []} total={game.match.totals[game.dealSeats[mine]] ?? 0} dealer={deal?.dealer === mine} active={myTurn} endsAt={game.endsAt} />
       {/if}
     </div>
 

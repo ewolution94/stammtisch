@@ -62,7 +62,7 @@
 <div class="final">
   <section class="sheet head">
     <span class="label">{t(`game_${game.id}`)}</span>
-    {#if stoppedBy !== null}<span class="label early">{t('endedBy', { name: stoppedBy })}</span>{/if}
+    {#if stoppedBy !== null}<span class="label early">{game.stoppedBy === view.me ? t('endedByYou') : t('endedBy', { name: stoppedBy })}</span>{/if}
     {#if winners.length}
       <div class="crown">
         {#each winners as w (w.seat)}
@@ -71,7 +71,7 @@
         {/each}
       </div>
       <h1 class="display">{winners.length > 1 ? t('winnersAre', { names: names(winners.map((w) => nameAt(w.seat))) }) : game.seats[winners[0].seat] === view.me ? t('youWin') : t('winnerIs', { name: nameAt(winners[0].seat) })}</h1>
-      <p class="sub">{t('withPoints', { n: score(best) })} · {t('dealsPlayed', { n: game.match.counted })}</p>
+      <p class="sub">{best === 1 ? t('withPointsOne') : t('withPoints', { n: score(best) })} · {game.match.counted === 1 ? t('dealsPlayedOne') : t('dealsPlayed', { n: game.match.counted })}</p>
     {:else}
       <h1 class="display">{t('noDeals')}</h1>
     {/if}

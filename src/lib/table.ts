@@ -59,3 +59,35 @@ export function keyed(cards: readonly string[]) {
     return { id, key: k ? `${id}~${k}` : id };
   });
 }
+
+/** The card a key stands for: the id, without the "~1" that tells two equal cards apart. */
+export const idOfKey = (key: string) => key.replace(/~\d+$/, '');
+
+/**
+ * A held hand's keys, kept from the last ones given out: a card that stays keeps its key, one that
+ * arrives gets a key no card had a moment ago (nor the one in the air), and of two equal cards the one in the air (`leaving`)
+ * is the one that goes. By position alone (`keyed`), the second Herz König would take the first one's
+ * key the moment that one was played, and the hand would think it still in the air.
+ */
+export function rekey(cards: readonly string[], prev: readonly { id: string; key: string }[], leaving: string | null = null) {
+  const pool = new Map<string, string[]>();
+  for (const c of prev) pool.set(c.id, [...(pool.get(c.id) ?? []), c.key]);
+  const need = new Map<string, number>();
+  for (const id of cards) need.set(id, (need.get(id) ?? 0) + 1);
+  if (leaving) {
+    const keys = pool.get(idOfKey(leaving));
+    if (keys && keys.includes(leaving) && (need.get(idOfKey(leaving)) ?? 0) < keys.length) keys.splice(keys.indexOf(leaving), 1);
+  }
+  const old = new Set(prev.map((c) => c.key));
+  if (leaving) old.add(leaving);
+  const given = new Set<string>();
+  return cards.map((id) => {
+    let key = pool.get(id)?.shift();
+    for (let k = 0; !key || given.has(key); k++) {
+      const fresh = k ? `${id}~${k}` : id;
+      if (!old.has(fresh) && !given.has(fresh)) key = fresh;
+    }
+    given.add(key);
+    return { id, key };
+  });
+}

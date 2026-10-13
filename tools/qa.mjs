@@ -1,20 +1,23 @@
-// Stammtisch QA: one person and bots at each game (Mau-Mau, Doppelkopf, Skat), played through the
-// page like a person would (tap a legal card twice, the panels' buttons: "Gesund", the bids, the
-// Skat, "Drücken", the Unter's wish, "Mau!"), screenshots at each new phase, overflow and console
-// checks; after the first deal of each game the host ends it and the end screen is shot. From
-// Stichle's tools/qa.mjs. Not part of CI: Playwright is borrowed from Folio's checkout next door
-// (the workspace's `folio/node_modules`, WebKit already installed).
+// Stammtisch QA: one person (or more) and bots at each game (Mau-Mau, Doppelkopf, Skat, Durak),
+// played through the page like a person would (tap a legal card, then tap it again; the panels'
+// buttons: "Gesund", the bids, the Skat, "Drücken", the Unter's wish, "Mau!", Durak's "Take" and
+// "Done"), screenshots at each new phase, overflow and console checks; after the first deal of each
+// game the host ends it and the end screen is shot. From Stichle's tools/qa.mjs. Not part of CI:
+// Playwright is borrowed from Folio's checkout next door (the workspace's `folio/node_modules`,
+// WebKit already installed).
 //
 //   npm run build && node server/server.mjs --port 6411     (or the stammtisch-prod preview)
-//   node tools/qa.mjs [base] [outdir]          GAMES=maumau,doppelkopf,skat W=390 H=844 by default
+//   node tools/qa.mjs [base] [outdir]          GAMES=maumau,doppelkopf,skat,durak W=390 H=844 by default
+//   PEOPLE=2 node tools/qa.mjs …                 a guest joins through the page and plays too
 import { webkit } from '../../folio/node_modules/playwright/index.mjs';
 import { mkdirSync } from 'node:fs';
 
 const BASE = process.argv[2] ?? 'http://localhost:6411';
 const OUT = process.argv[3] ?? '/tmp/stammtisch-qa/';
-const GAMES = (process.env.GAMES ?? 'maumau,doppelkopf,skat').split(',');
+const GAMES = (process.env.GAMES ?? 'maumau,doppelkopf,skat,durak').split(',');
 const W = Number(process.env.W ?? 390), H = Number(process.env.H ?? 844);
 const LANG = process.env.LANG_UI ?? 'en';
+const PEOPLE = Number(process.env.PEOPLE ?? 1);
 mkdirSync(OUT, { recursive: true });
 
 const problems = [];
@@ -50,7 +53,7 @@ async function overflow(p, label) {
     return [...document.querySelectorAll('body *')]
       .filter((el) => {
         const r = el.getBoundingClientRect();
-        return r.width > 0 && r.right > w + 1 && !el.closest('.hand, .trick, svg, .played');
+        return r.width > 0 && r.right > w + 1 && !el.closest('.hand, .trick, svg, .played, .wrap');
       })
       .slice(0, 5)
       .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')} → ${Math.round(el.getBoundingClientRect().right)}`);
@@ -67,66 +70,71 @@ async function snap(p, label) {
 
 /** One move like a person; returns what it did (or 'wait'). */
 async function step(p) {
-  return p.page.evaluate(() => {
+  const { what, tap } = await p.page.evaluate(() => {
     // A tap where a finger would land on a card in the fan: its visible strip, on its left edge,
-    // half way down (the cards to its right cover the rest).
+    // half way down (the cards to its right cover the rest). The page works out the point; the
+    // mouse taps it for real, below.
+    let tap = null;
     const click = (el) => {
       const r = el.getBoundingClientRect();
-      const at = { bubbles: true, clientX: r.x + Math.min(14, r.width / 3), clientY: r.y + r.height * 0.45, pointerId: 1, button: 0 };
-      el.dispatchEvent(new PointerEvent('pointerdown', at));
-      el.dispatchEvent(new PointerEvent('pointerup', at));
+      tap = [r.x + Math.min(14, r.width / 3), r.y + r.height * 0.45];
     };
-    const button = (re, root = document) => [...root.querySelectorAll('button')].find((b) => !b.disabled && re.test(b.textContent.trim()));
-    if (document.querySelector('.final')) return 'final';
-    const veil = document.querySelector('.veil');
-    if (veil) {
-      // The deal's result: shot first (the caller), then on.
-      if (!veil.dataset.seen) {
-        veil.dataset.seen = '1';
+    const what = (() => {
+      const button = (re, root = document) => [...root.querySelectorAll('button')].find((b) => !b.disabled && re.test(b.textContent.trim()));
+      if (document.querySelector('.final')) return 'final';
+      const veil = document.querySelector('.veil');
+      if (veil) {
+        // The deal's result: shot first (the caller), then on.
+        if (!veil.dataset.seen) {
+          veil.dataset.seen = '1';
+          return 'scored';
+        }
+        const next = button(/^(Next|Weiter)/, veil);
+        if (next) {
+          next.click();
+          return 'next';
+        }
         return 'scored';
       }
-      const next = button(/^(Next|Weiter)/, veil);
-      if (next) {
-        next.click();
-        return 'next';
+      const panel = document.querySelector('.dock .panel');
+      if (panel) {
+        // A Mau-Mau wish: the first suit.
+        const suit = panel.querySelector('.suitbtn');
+        if (suit) return suit.click(), 'wish';
+        for (const re of [/^(Healthy|Gesund)$/, /^(Pick up the Skat|Skat aufnehmen)$/, /^(Declare|Ansagen)$/, /^(Play \(18\)|Spielen \(18\))$/, /^(Yes|Ja), \d+/, /^(Bid|\d+ sagen)/, /^(Take it|Nehmen)$/]) {
+          const b = button(re, panel);
+          if (b) return b.click(), b.textContent.trim();
+        }
+        // Putting cards back or giving them: pick the first ones, then confirm.
+        const confirm = button(/\((\d)\/(\d)\)$/, panel) ?? [...panel.querySelectorAll('button')].find((b) => /\(\d\/\d\)$/.test(b.textContent.trim()));
+        if (confirm) {
+          const [, have, need] = /\((\d)\/(\d)\)$/.exec(confirm.textContent.trim()).map(Number);
+          if (have < need) {
+            const slot = [...document.querySelectorAll('.hand .slot')].find((s) => s.getAttribute('aria-pressed') === 'false');
+            if (slot) return click(slot), 'pick';
+          } else if (!confirm.disabled) return confirm.click(), 'confirm';
+        }
+        return 'panel?';
       }
-      return 'scored';
-    }
-    const panel = document.querySelector('.dock .panel');
-    if (panel) {
-      // A Mau-Mau wish: the first suit.
-      const suit = panel.querySelector('.suitbtn');
-      if (suit) return suit.click(), 'wish';
-      for (const re of [/^(Healthy|Gesund)$/, /^(Pick up the Skat|Skat aufnehmen)$/, /^(Declare|Ansagen)$/, /^(Play \(18\)|Spielen \(18\))$/, /^(Yes|Ja), \d+/, /^(Bid|\d+ sagen)/, /^(Take it|Nehmen)$/]) {
-        const b = button(re, panel);
-        if (b) return b.click(), b.textContent.trim();
-      }
-      // Putting cards back or giving them: pick the first ones, then confirm.
-      const confirm = button(/\((\d)\/(\d)\)$/, panel) ?? [...panel.querySelectorAll('button')].find((b) => /\(\d\/\d\)$/.test(b.textContent.trim()));
-      if (confirm) {
-        const [, have, need] = /\((\d)\/(\d)\)$/.exec(confirm.textContent.trim()).map(Number);
-        if (have < need) {
-          const slot = [...document.querySelectorAll('.hand .slot')].find((s) => s.getAttribute('aria-pressed') === 'false');
-          if (slot) return click(slot), 'pick';
-        } else if (!confirm.disabled) return confirm.click(), 'confirm';
-      }
-      return 'panel?';
-    }
-    const status = document.querySelector('.status.mine');
-    const mau = document.querySelector('.btn.mau:not(.on)');
-    if (mau) mau.click();
-    if (!status) return 'wait';
-    const legal = [...document.querySelectorAll('.hand .slot')].find((s) => s.getAttribute('aria-disabled') === 'false');
-    if (legal) {
-      click(legal);
-      click(legal);
-      return 'play';
-    }
-    const draw = [...document.querySelectorAll('.actions .btn')].find((b) => !b.disabled);
-    if (draw) return draw.click(), draw.textContent.trim();
-    // A finished trick still holds the table ("Your trick."): wait.
-    return /trick|Stich/.test(status.textContent) ? 'wait' : 'stuck';
+      const status = document.querySelector('.status.mine');
+      const mau = document.querySelector('.btn.mau:not(.on)');
+      if (mau) mau.click();
+      if (!status) return 'wait';
+      // Tap a legal card once to lift it, and once more (the next step, as a person would) to play it.
+      const slots = [...document.querySelectorAll('.hand .slot')];
+      const lifted = slots.find((s) => s.classList.contains('lifted') && s.getAttribute('aria-disabled') === 'false');
+      if (lifted) return click(lifted), 'play';
+      const legal = slots.find((s) => s.getAttribute('aria-disabled') === 'false');
+      if (legal) return click(legal), 'lift';
+      const draw = [...document.querySelectorAll('.actions .btn')].find((b) => !b.disabled);
+      if (draw) return draw.click(), draw.textContent.trim();
+      // A finished trick still holds the table ("Your trick."): wait.
+      return /trick|Stich/.test(status.textContent) ? 'wait' : 'stuck';
+    })();
+    return { what, tap };
   });
+  if (tap) await p.page.mouse.click(tap[0], tap[1]);
+  return what;
 }
 
 for (const game of GAMES) {
@@ -136,24 +144,45 @@ for (const game of GAMES) {
   await host.page.evaluate(([code, s]) => localStorage.setItem(`stammtisch:seat:${code}`, JSON.stringify({ ...s, at: Date.now() })), [seat.code, seat]);
   await host.page.goto(`${BASE}/${seat.code}`, { waitUntil: 'load' });
   await host.page.waitForSelector('.lobby');
-  const bots = game === 'skat' ? 2 : 3;
+  // Guests: the table's link, the name, "Play", like a person.
+  const people = [host];
+  for (let i = 1; i < PEOPLE; i++) {
+    const guest = await person(`guest${i}-${game}`);
+    await guest.page.goto(`${BASE}/${seat.code}`, { waitUntil: 'load' });
+    await guest.page.locator('.join input.input').fill(`Gast ${i}`);
+    await guest.page.getByRole('button', { name: /^(Play|Mitspielen)$/ }).click();
+    await guest.page.waitForSelector('.lobby');
+    people.push(guest);
+  }
+  if (PEOPLE > 1 && !(await host.page.getByText('Gast 1').count())) problems.push(`${game}: the host's lobby doesn't show the guest`);
+  const bots = (game === 'skat' ? 3 : 4) - people.length;
   for (let i = 0; i < bots; i++) await api(host.page, `/api/rooms/${seat.code}/bot`, { add: true }, seat.token);
   await snap(host, `${game}-lobby`);
   await host.page.getByRole('button', { name: /^(Deal|Geben)$/ }).click();
-  await host.page.waitForSelector('.table');
+  for (const p of people) await p.page.waitForSelector('.table');
   say(game, 'dealt', seat.code);
   const done = new Set();
   let steps = 0;
   let stuck = 0;
   for (let t = 0; t < 900; t++) {
+    // A guest's turn first (the host's own moves, and the shots, follow below).
+    for (const guest of people.slice(1)) {
+      const did = await step(guest);
+      if (did === 'play' && !done.has(`${guest.name}-play`)) {
+        done.add(`${guest.name}-play`);
+        await snap(guest, `${game}-guest-play`);
+      }
+    }
     const what = await step(host);
+    if (process.env.TRACE) say(t, what, ...(await host.page.evaluate(() => [document.querySelector('.status')?.textContent ?? '', document.querySelector('.hand .slot.lifted')?.getAttribute('aria-label') ?? '-', document.querySelectorAll('.hand .slot').length])));
     const key = what.replace(/\d+/g, '#');
-    if (!done.has(key) && !['wait', 'pick'].includes(what)) {
+    if (!done.has(key) && !['wait', 'pick', 'lift'].includes(what)) {
       done.add(key);
       await snap(host, `${game}-${key.replace(/[^a-z#]+/gi, '-')}`);
     }
     if (what === 'scored') {
       await snap(host, `${game}-dealend`);
+      for (const guest of people.slice(1)) await snap(guest, `${game}-guest-dealend`);
       break;
     }
     if (what === 'stuck' || what === 'panel?') {
@@ -177,6 +206,11 @@ for (const game of GAMES) {
   await api(host.page, `/api/rooms/${seat.code}/stop`, {}, seat.token);
   await host.page.waitForSelector('.final', { timeout: 5000 }).catch(() => problems.push(`${game}: no final screen`));
   await snap(host, `${game}-final`);
+  for (const guest of people.slice(1)) {
+    await guest.page.waitForSelector('.final', { timeout: 5000 }).catch(() => problems.push(`${game}: the guest saw no final screen`));
+    await snap(guest, `${game}-guest-final`);
+    await guest.context.close();
+  }
   await host.context.close();
 }
 

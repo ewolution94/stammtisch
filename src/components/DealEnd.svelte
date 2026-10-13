@@ -48,12 +48,25 @@
   function itemText(key: string) {
     return t(`item_${key}` as 'item_won');
   }
+  /** Whether a game seat of this deal is you. */
+  const isMe = (seat: number) => game.seats[rec.seats[seat]] === view.me;
   const winnerLine = $derived.by(() => {
-    if (game.id === 'maumau') return t('mauOut', { name: nameAt(result.winner ?? 0) });
-    if (game.id === 'durak') return result.loser === null || result.loser === undefined ? t('durakDraw') : t('durakIs', { name: nameAt(result.loser) });
+    if (game.id === 'maumau') return isMe(result.winner ?? 0) ? t('mauOutYou') : t('mauOut', { name: nameAt(result.winner ?? 0) });
+    if (game.id === 'durak') {
+      if (result.loser === null || result.loser === undefined) return t('durakDraw');
+      return isMe(result.loser) ? t('durakIsYou') : t('durakIs', { name: nameAt(result.loser) });
+    }
     if (doko) return doko.winner ? t(doko.winner === 're' ? 'reWins' : 'kontraWins') : t('nobodyWins');
-    if (skat) return skat.won ? t('skatWonBy', { name: nameAt(skat.declarer) }) : skat.overbid ? t('skatOverbid', { name: nameAt(skat.declarer) }) : t('skatLostBy', { name: nameAt(skat.declarer) });
-    if (ramsch) return ramsch.durchmarsch !== undefined ? t('ramschThrough', { name: nameAt(ramsch.durchmarsch) }) : t('ramschLoses', { names: (ramsch.points ?? []).flatMap((p, i) => (p < 0 ? [nameAt(i)] : [])).join(', ') });
+    if (skat) {
+      const me = isMe(skat.declarer);
+      if (skat.won) return me ? t('skatWonYou') : t('skatWonBy', { name: nameAt(skat.declarer) });
+      if (skat.overbid) return me ? t('skatOverbidYou') : t('skatOverbid', { name: nameAt(skat.declarer) });
+      return me ? t('skatLostYou') : t('skatLostBy', { name: nameAt(skat.declarer) });
+    }
+    if (ramsch) {
+      if (ramsch.durchmarsch !== undefined) return isMe(ramsch.durchmarsch) ? t('ramschThroughYou') : t('ramschThrough', { name: nameAt(ramsch.durchmarsch) });
+      return t('ramschLoses', { names: (ramsch.points ?? []).flatMap((p, i) => (p < 0 ? [nameAt(i)] : [])).join(', ') });
+    }
     if (result.void === 'passed') return t('voidPassed');
     if (result.void === 'throw') return t('voidThrow', { name: nameAt(result.seat ?? 0) });
     if (result.void === 'poverty') return t('voidPoverty', { name: nameAt(result.seat ?? 0) });

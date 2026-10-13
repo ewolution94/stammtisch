@@ -10,10 +10,11 @@
   is a card to point out (the one just drawn).
 -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { nameOf } from '../lib/deck';
   import { flying } from '../lib/flight.svelte';
   import { i18n } from '../lib/i18n.svelte';
-  import { keyed } from '../lib/table';
+  import { idOfKey, rekey } from '../lib/table';
   import Card from './Card.svelte';
 
   type Target = { x: number; y: number; rot: number; width: number };
@@ -58,8 +59,11 @@
   /** The card under a finger that's dragging it, and where it is. */
   let drag = $state<{ key: string; x: number; y: number; r: number } | null>(null);
 
-  const items = $derived(keyed(cards));
-  const idOf = (key: string) => items.find((c) => c.key === key)?.id ?? air?.id ?? key.replace(/~\d+$/, '');
+  // Each card's key, kept while it's held (see rekey): built on the last ones given out, with the
+  // card in the air as the one of two equal cards that leaves.
+  let given: { id: string; key: string }[] = [];
+  const items = $derived.by(() => (given = rekey(cards, given, untrack(() => air?.key ?? null))));
+  const idOf = (key: string) => items.find((c) => c.key === key)?.id ?? air?.id ?? idOfKey(key);
 
   const els = new Map<string, HTMLElement>();
   function register(node: HTMLElement, key: string) {

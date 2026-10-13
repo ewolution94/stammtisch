@@ -7,10 +7,10 @@
 -->
 <script lang="ts">
   import { ApiError, type DokoDeal, type SkatDeal, type View } from '../lib/api';
-  import { callName, contractName, skatGame, tricksText } from '../lib/games';
+  import { callName, contractName, dealNumber, skatGame, tricksText } from '../lib/games';
   import { errorText, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
-  import { angleOf, keyed, slotOffset, trickCardWidth, twist } from '../lib/table';
+  import { angleOf, idOfKey, keyed, slotOffset, trickCardWidth, twist } from '../lib/table';
   import { actAt } from '../lib/waits';
   import { askTilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -64,7 +64,7 @@
   $effect(() => {
     if (!picking) picked = [];
   });
-  const pickedIds = $derived(picked.map((key) => keyed(deal?.hand ?? []).find((c) => c.key === key)?.id ?? key.replace(/~\d+$/, '')));
+  const pickedIds = $derived(picked.map(idOfKey));
   function toggle(key: string) {
     if (picked.includes(key)) picked = picked.filter((k) => k !== key);
     else if (picked.length < picking) picked = [...picked, key];
@@ -201,7 +201,7 @@
     return '';
   });
 
-  const dealNo = $derived(Math.min(game.match.counted + 1, game.match.deals));
+  const dealNo = $derived(dealNumber(game));
 </script>
 
 <div class="table">

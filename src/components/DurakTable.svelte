@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
   import { ApiError, type DurakDeal, type View } from '../lib/api';
-  import { cardsText, suitName } from '../lib/games';
+  import { cardsText, dealNumber, suitName } from '../lib/games';
   import { errorText, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
   import { twist } from '../lib/table';
@@ -69,6 +69,10 @@
   // A card that could beat or pass the attack on: ask which.
   let choosing: string | null = $state(null);
   const both = (card: string) => moves.some((m) => m.type === 'beat' && m.card === card) && moves.some((m) => m.type === 'transfer' && m.card === card);
+  // The moment gone (the table changed, the clock played): the question goes too.
+  $effect(() => {
+    if (choosing && !both(choosing)) choosing = null;
+  });
 
   function refused() {
     if (!deal) return;
@@ -102,7 +106,7 @@
 
   const status = $derived.by(() => {
     if (!deal || game.phase !== 'deal' || deal.phase !== 'play') return '';
-    if (ending && deal.lastBout) return deal.lastBout.took ? t('durakTook', { name: nameAt(deal.lastBout.defender) }) : t('durakBito');
+    if (ending && deal.lastBout) return deal.lastBout.took ? (deal.lastBout.defender === mine ? t('durakTookYou') : t('durakTook', { name: nameAt(deal.lastBout.defender) })) : t('durakBito');
     if (defending) {
       if (deal.taking) return t('durakTakingYou');
       return deal.table.some((p) => !p.defense) ? t('durakDefendYou') : t('durakDefendedYou');
@@ -112,7 +116,7 @@
     return can('attack') ? t('durakThrowYou') : t('durakDefendOther', { name: nameAt(deal.defender) });
   });
 
-  const dealNo = $derived(Math.min(game.match.counted + 1, game.match.deals));
+  const dealNo = $derived(dealNumber(game));
   const sub = $derived(deal ? `${t('trumpIs', { suit: suitName(deal.trump) })} · ${t('durakStock', { n: deal.stock })}` : '');
 
   function seatTags(seat: number) {
@@ -133,7 +137,7 @@
     <div class="seats" style:--count={others.length}>
       {#each others as seat, i (seat)}
         <div class="far" style:--lift="{Math.round((1 - Math.sin(((i + 1) / (others.length + 1)) * Math.PI)) * 14)}px">
-          <SeatChip {room} player={playerAt(seat)} compact line={cardsText(deal?.counts[seat] ?? 0)} tags={seatTags(seat)} total={game.match.totals[game.dealSeats[seat]] ?? 0} dealer={deal?.dealer === seat} active={game.phase === 'deal' && deal?.turn === seat && deal?.phase === 'play'} gone={game.gone[game.dealSeats[seat]]} endsAt={game.endsAt} />
+          <SeatChip {room} player={playerAt(seat)} compact line={deal ? cardsText(deal.counts[seat]) : ''} tags={seatTags(seat)} total={game.match.totals[game.dealSeats[seat]] ?? 0} dealer={deal?.dealer === seat} active={game.phase === 'deal' && deal?.turn === seat && deal?.phase === 'play'} gone={game.gone[game.dealSeats[seat]]} endsAt={game.endsAt} />
           <span class="held" aria-hidden="true">
             {#each { length: Math.min(deal?.counts[seat] ?? 0, 9) } as _, k (k)}<i style:--k={k - (Math.min(deal?.counts[seat] ?? 0, 9) - 1) / 2}></i>{/each}
           </span>
@@ -174,6 +178,7 @@
           <button class="btn primary" type="button" onclick={() => { const c = choosing!; choosing = null; void lay(c).catch(() => {}); }}>{t('durakBeat')}</button>
           <button class="btn" type="button" onclick={() => { const c = choosing!; choosing = null; void move({ type: 'transfer', card: c }).catch(() => {}); }}>{t('durakPassOn')}</button>
         </div>
+        <button class="btn ghost small" type="button" onclick={() => (choosing = null)}>{t('back')}</button>
       </div>
     {/if}
 
@@ -184,7 +189,7 @@
 
     <div class="mine">
       {#if mine >= 0}
-        <SeatChip {room} player={playerAt(mine)} me line={cardsText(deal?.hand?.length ?? 0)} tags={seatTags(mine)} total={game.match.totals[game.dealSeats[mine]] ?? 0} dealer={deal?.dealer === mine} active={myTurn} endsAt={game.endsAt} />
+        <SeatChip {room} player={playerAt(mine)} me line={deal ? cardsText(deal.hand?.length ?? 0) : ''} tags={seatTags(mine)} total={game.match.totals[game.dealSeats[mine]] ?? 0} dealer={deal?.dealer === mine} active={myTurn} endsAt={game.endsAt} />
       {/if}
     </div>
 

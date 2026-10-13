@@ -1,7 +1,7 @@
 // What the page says about each game's state: suit and card names in the German deck's words, the
 // Doppelkopf contracts and announcements, the Skat games and bids. German first, English beside it.
 
-import type { DokoContract, DokoParty, SkatContract } from './api';
+import type { DokoContract, DokoParty, Game, SkatContract } from './api';
 import { WORDS, type Suit } from './deck';
 import { i18n, t } from './i18n.svelte';
 
@@ -55,3 +55,10 @@ export function skatGame(c: Pick<SkatContract, 'game' | 'hand' | 'schneider' | '
 export const tricksText = (n: number) => (n === 1 ? t('trickOne') : t('tricksN', { n }));
 /** "5 Karten", "1 Karte". */
 export const cardsText = (n: number) => (n === 1 ? t('cardOne') : t('cardsN', { n }));
+
+/** The deal the bar names: the one in play, or, while its result is up, the one just scored. */
+export function dealNumber(game: Game) {
+  const { counted, deals, history } = game.match;
+  const scored = game.phase !== 'deal' && history[history.length - 1]?.counts;
+  return Math.min(scored ? counted : counted + 1, deals);
+}
