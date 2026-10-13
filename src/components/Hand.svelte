@@ -85,6 +85,24 @@
   $effect(() => {
     if (sel && !items.some((c) => c.key === sel)) sel = null;
   });
+  // A lifted card drops back on a tap or click anywhere outside the hand, or on Escape: on a laptop it
+  // had no way down (Stichle dc1b4d5; the user, 2026-10-13). The kit's gestures listen on the hand's
+  // own box only, so a press inside it lifts as before.
+  $effect(() => {
+    if (!sel) return;
+    const away = (e: PointerEvent) => {
+      if (!(e.target instanceof Node && box?.contains(e.target))) sel = null;
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') sel = null;
+    };
+    document.addEventListener('pointerdown', away, true);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', away, true);
+      document.removeEventListener('keydown', escape);
+    };
+  });
   // Landed, and the server's hand no longer has it: from now on it's the table's to draw.
   $effect(() => {
     if (air?.landed && !items.some((c) => c.key === air!.key)) air = null;
