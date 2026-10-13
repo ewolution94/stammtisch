@@ -10,7 +10,7 @@
   import { callName, contractName, dealNumber, skatGame, tricksText } from '../lib/games';
   import { errorText, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
-  import { angleOf, idOfKey, keyed, slotOffset, trickCardWidth, twist } from '../lib/table';
+  import { angleOf, idOfKey, keyed, slotOffset, trickCardWidth, trickPhase, twist, TRICK_REVEAL } from '../lib/table';
   import { actAt } from '../lib/waits';
   import { askTilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -42,15 +42,17 @@
   const sittingOut = $derived(game.seats.map((_, t) => t).filter((t) => !game.dealSeats.includes(t)));
   const myTurn = $derived(mine >= 0 && game.phase === 'deal' && game.waiting.includes(mine));
 
-  // A finished trick holds the table for a moment: no card until it's cleared.
+  // A finished trick holds the table for a moment: no card until it's cleared. The page wakes when its
+  // winner shows (the status names them then, not before) and when the hold is over.
   let now = $state(Date.now());
   $effect(() => {
     const wait = room.left(game.holdUntil);
     if (wait <= 0) return;
-    const timer = setTimeout(() => (now = Date.now()), wait + 30);
-    return () => clearTimeout(timer);
+    const timers = [wait - TRICK_REVEAL, wait].filter((ms) => ms > 0).map((ms) => setTimeout(() => (now = Date.now()), ms + 30));
+    return () => timers.forEach(clearTimeout);
   });
   const holding = $derived(room.left(game.holdUntil, now) > 0);
+  const revealed = $derived(trickPhase(room.left(game.holdUntil, now)) !== 'rest');
   const canPlay = $derived(Boolean(deal && myTurn && deal.phase === 'play' && !holding));
 
   // Picking cards: the Skat's two to put back, poverty's three to give and to give back.
@@ -110,6 +112,8 @@
     sent = key;
   }
   const deciding = $derived(sent !== moveKey);
+  /** Your bid, reservation, Skat or declaration is open: it floats over the table and says what's asked. */
+  const panelOpen = $derived(Boolean(deal && deciding && myTurn && ((doko && doko.phase !== 'play') || (skat && skat.phase !== 'play'))));
 
   function refused(card: string) {
     if (!myTurn) return say(t('notYourTurn'));
@@ -192,6 +196,8 @@
     }
     if (deal.phase === 'play') {
       if (holding && game.lastTrick) {
+        // The table rests a moment after the last card; the winner is named once it shows.
+        if (!revealed) return '';
         const w = game.lastTrick.winner;
         return w === mine ? t('trickYou') : t('trickOther', { name: nameAt(w) });
       }
@@ -239,7 +245,7 @@
   <div class="dock">
     {#if error}
       <p class="toast" role="alert">{error}</p>
-    {:else if status}
+    {:else if status && !panelOpen}
       <p class="status" class:mine={myTurn} aria-live="polite">{status}</p>
     {/if}
 
@@ -368,10 +374,17 @@
     flex-direction: column;
     gap: 6px;
   }
+  /* The status floats on the table's near edge, above your place card: it comes and goes without
+     moving anything, so the table keeps its size. */
   .status,
   .toast {
-    align-self: center;
-    max-width: 100%;
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    translate: -50% 0;
+    width: max-content;
+    max-width: calc(100% - 24px);
     margin: 0;
     padding: 4px 12px;
     border-radius: 999px;

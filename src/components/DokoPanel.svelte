@@ -94,13 +94,23 @@
 {/if}
 
 <style>
+  /* Your decision floats over the table, just above your place card: the table keeps its size
+     underneath (Stichle's, after the user's first game on the phone, 2026-10-13). */
   .panel {
+    position: absolute;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
     display: flex;
     flex-direction: column;
     gap: 10px;
-    align-self: center;
     width: 100%;
     max-width: 440px;
+    margin-inline: auto;
+    box-shadow:
+      0 1px 0 rgb(0 0 0 / 0.35),
+      0 24px 40px -18px rgb(0 0 0 / 0.85);
     padding: 18px 18px 16px;
     animation: rise 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
   }
@@ -115,9 +125,13 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
+  /* During play, beside your place card: no row of its own, so the table keeps its size. */
   .calls {
+    position: absolute;
+    z-index: 6;
+    top: 4px;
+    right: 4px;
     display: flex;
-    justify-content: flex-end;
   }
   .call {
     min-height: 38px;

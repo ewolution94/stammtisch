@@ -5,6 +5,27 @@
 
 import { cardTwist, pileCardWidth, placeOf as kitPlaceOf, seatAngle, stackPlace, sweepTo, trickSlot } from '../../vendor/ewo/elements/card-pile.js';
 
+/**
+ * The end of a trick, in beats counted back from the server's holdUntil (its TRICK_PAUSE, 2600 ms,
+ * starts when the last card is played): first the table rests with every card where it landed, then
+ * the winner lifts and catches the light while the others dim, then the cards gather under the
+ * winner, then the stack sweeps off to the winner's seat (Stichle's, after the user's first game on
+ * the phone, 2026-10-13: "it feels very rushed"). Every page reads the same beats from the same
+ * holdUntil.
+ */
+export const TRICK_REVEAL = 1900; // ms before holdUntil: the winner shows (700 ms after the last card)
+export const TRICK_GATHER = 420; // ms before holdUntil: the cards gather under the winner
+export const TRICK_SWEEP = 560; // ms after holdUntil: the stack sweeps off, then it's gone
+export type TrickPhase = 'rest' | 'reveal' | 'gather' | 'sweep' | 'gone';
+/** The finished trick's beat, from the time left until holdUntil (negative after it). */
+export function trickPhase(left: number): TrickPhase {
+  if (left > TRICK_REVEAL) return 'rest';
+  if (left > TRICK_GATHER) return 'reveal';
+  if (left > 0) return 'gather';
+  if (left > -TRICK_SWEEP) return 'sweep';
+  return 'gone';
+}
+
 let uid = 0;
 /** A fresh id for one drawn card, so its foil gradients never clash with another card's. */
 export const nextUid = () => ++uid;

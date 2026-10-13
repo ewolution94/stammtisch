@@ -167,7 +167,7 @@
   <div class="dock">
     {#if error}
       <p class="toast" role="alert">{error}</p>
-    {:else if status}
+    {:else if status && !choosing}
       <p class="status" class:mine={myTurn || can('attack')} aria-live="polite">{status}</p>
     {/if}
 
@@ -360,10 +360,17 @@
     flex-direction: column;
     gap: 6px;
   }
+  /* The status floats on the table's near edge, above your place card: it comes and goes without
+     moving anything, so the table keeps its size. */
   .status,
   .toast {
-    align-self: center;
-    max-width: 100%;
+    position: absolute;
+    z-index: 6;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    translate: -50% 0;
+    width: max-content;
+    max-width: calc(100% - 24px);
     margin: 0;
     padding: 4px 12px;
     border-radius: 999px;
@@ -378,13 +385,23 @@
   .toast {
     color: #ffe0b0;
   }
+  /* Your decision floats over the table, just above your place card: the table keeps its size
+     underneath (Stichle's, after the user's first game on the phone, 2026-10-13). */
   .panel {
+    position: absolute;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
     display: flex;
     flex-direction: column;
     gap: 10px;
-    align-self: center;
     width: 100%;
     max-width: 440px;
+    margin-inline: auto;
+    box-shadow:
+      0 1px 0 rgb(0 0 0 / 0.35),
+      0 24px 40px -18px rgb(0 0 0 / 0.85);
     padding: 18px 18px 16px;
   }
   .pair2 {

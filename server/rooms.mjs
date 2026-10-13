@@ -52,8 +52,14 @@ export const LIMITS = {
   roomsPer10Min: 40,
 };
 
-/** How long a finished trick stays in the middle before the next card may come. */
-export const TRICK_PAUSE = 1500;
+/**
+ * How long a finished trick stays in the middle before the next card may come: it rests, the winner
+ * shows, the cards gather, then it sweeps off (src/lib/table.ts → trickPhase; Stichle's, after the
+ * user's first game on the phone: "it feels very rushed").
+ */
+export const TRICK_PAUSE = 2600;
+/** Bots lead the next trick only once the last one has swept off the table. */
+const AFTER_SWEEP = 600;
 /** A finished Mau-Mau deal: the last card's moment before the result. */
 const DONE_PAUSE = 1100;
 /** The deal's result waits this long for everyone's "next", then the next deal comes anyway. */
@@ -334,7 +340,7 @@ export function createRooms({ clock = realClock, randomInt = (n) => cryptoInt(n)
     }
     if (s.phase === 'done') {
       const n = g.match.history.length;
-      const pause = s.result?.void ? 600 : def.tricks ? TRICK_PAUSE : DONE_PAUSE;
+      const pause = s.result?.void ? 600 : def.tricks ? TRICK_PAUSE + AFTER_SWEEP : DONE_PAUSE;
       later(r, pause, () => r.phase === 'play' && g.phase === 'deal' && g.match.history.length === n && settle(r));
     }
     moved(r);
@@ -399,11 +405,11 @@ export function createRooms({ clock = realClock, randomInt = (n) => cryptoInt(n)
     for (const seat of waiting(s)) {
       const p = r.players.get(g.seats[g.dealSeats[seat]]);
       if (!p || p.bot) {
-        const wait = Math.max(think(), g.holdUntil - clock.now() + 250);
+        const wait = Math.max(think(), g.holdUntil - clock.now() + AFTER_SWEEP);
         later(r, wait, () => still() && autoMove(r, seat));
       } else if (p.left || p.online === 0) {
         const gone = p.left ? 0 : AWAY_MS - Math.min(AWAY_MS, clock.now() - (p.offlineSince ?? clock.now()));
-        later(r, Math.max(gone, think(), g.holdUntil - clock.now() + 250), () => still() && (p.left || p.online === 0) && autoMove(r, seat));
+        later(r, Math.max(gone, think(), g.holdUntil - clock.now() + AFTER_SWEEP), () => still() && (p.left || p.online === 0) && autoMove(r, seat));
       }
     }
   }

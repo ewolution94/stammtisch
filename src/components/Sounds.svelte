@@ -29,7 +29,8 @@
       else if (e.type === 'play') landed = true;
       else if (e.type === 'trick' && typeof e.seat === 'number') {
         const yours = e.seat === mine;
-        setTimeout(() => (yours ? play.won() : play.lost()), 650);
+        // With the winner's reveal on the table (src/lib/table.ts → TRICK_REVEAL: 700 ms after the last card).
+        setTimeout(() => (yours ? play.won() : play.lost()), 700);
       }
     }
     if (landed) play.card();
