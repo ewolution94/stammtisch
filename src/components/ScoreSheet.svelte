@@ -78,7 +78,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   th,
   td {

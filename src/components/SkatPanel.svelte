@@ -213,7 +213,7 @@
   .big {
     font-size: 60px;
     line-height: 1;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums tabular-nums;
     text-align: center;
     color: var(--ink);
     animation: pop 0.3s cubic-bezier(0.25, 1.6, 0.4, 1) both;

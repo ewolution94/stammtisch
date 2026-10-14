@@ -194,7 +194,7 @@
   .standings b {
     font-size: 19px;
     text-align: right;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .chart {
     width: 100%;

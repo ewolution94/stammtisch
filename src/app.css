@@ -1,12 +1,13 @@
 /* Stammtisch's look: the regulars' table in the corner of the pub. Dark oak panelling all round, a
    blue-green baize on a mahogany rail with brass studs, the cards in letterpress on cotton paper
    (src/lib/deck.js), the backs bordeaux and gold. Panels are the cards' own paper with their double
-   rule; numbers and headings in Bodoni Moda, pressed in; gold only where something is special. Light
+   rule; numbers and headings in Texturina (a blackletter opened up for reading: the user's pick,
+   2026-10-14, for Bodoni's hairlines), pressed in; gold only where something is special. Light
    only, like Stichle (whose look this shares): the cards are paper.
    Folio's tokens and elements are the bones (vendor/ewo); the tokens it shares point at these. */
 @import '../vendor/ewo/tokens/index.css';
 @import '../vendor/ewo/tokens/base.css';
-@import '@fontsource-variable/bodoni-moda/opsz.css';
+@import '@fontsource-variable/texturina/opsz.css';
 
 :root,
 :root[data-theme='dark'] {
@@ -51,7 +52,7 @@
   --back-ground: #5b1427;
   --back-line: #c9a24a;
 
-  --display: 'Bodoni Moda Variable', 'Bodoni Moda', Didot, 'Times New Roman', serif;
+  --display: 'Texturina Variable', 'Texturina', Georgia, 'Times New Roman', serif;
   --shadow: 0 1px 0 rgb(10 14 10 / 0.25), 0 14px 26px -16px rgb(5 10 6 / 0.75);
 
   --gutter: clamp(16px, 3vw, 40px);
@@ -80,6 +81,12 @@
 }
 
 /* The pub: dark oak panelling, warm light from the lamp over the table. */
+/* Texturina's default digits are old-style (0, 1 and 2 at x-height, a 0 like an o): every number here
+   stands full height. A rule that sets tabular-nums says lining-nums too, or it would undo this. */
+:root {
+  font-variant-numeric: lining-nums;
+}
+
 html {
   background-color: #150d09;
   background-image:
@@ -349,7 +356,7 @@ button {
   color: #ffffff;
 }
 
-/* The logo (Logo.svelte): the name in Bodoni, two cards fanned beside it. */
+/* The logo (Logo.svelte): the name in Texturina, two cards fanned beside it. */
 .logo {
   display: inline-flex;
   align-items: center;

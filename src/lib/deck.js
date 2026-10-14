@@ -170,15 +170,16 @@ const GOLD = [[0, '#6e4f16'], [0.16, '#b98b34'], [0.3, '#f3dc94'], [0.38, '#fff6
 const foil = (id, stops, k) =>
   `<linearGradient id="${id}" class="foil" data-k="${k}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="250" y2="350" spreadMethod="reflect">${stops.map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`;
 
-const BODONI = `font-family="'Bodoni Moda', Didot, 'Times New Roman', serif"`;
+// The cards speak in the app's display face (src/app.css), its digits full height.
+const DISPLAY = `font-family="'Texturina Variable', 'Texturina', Georgia, serif"`;
 const svg = (defs, body) => `<svg viewBox="0 0 250 350" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>${defs}</defs>${body}</svg>`;
 const corners = (inner) => `<g>${inner}</g><g transform="rotate(180 125 175)">${inner}</g>`;
 const frames = (st) =>
   `<rect x="11" y="11" width="228" height="328" rx="8" fill="none" stroke="${st}" stroke-width="1"/><rect x="15.5" y="15.5" width="219" height="319" rx="6" fill="none" stroke="${st}" stroke-width="2.2"/>`;
 const index = (txt, fill, mark) =>
-  `<text x="47" y="63" text-anchor="middle" ${BODONI} font-weight="800" font-size="${txt.length > 1 ? 46 : 50}" style="font-variation-settings:'opsz' 14" fill="${fill}">${txt}</text>${mark}`;
+  `<text x="47" y="63" text-anchor="middle" ${DISPLAY} font-weight="800" font-size="${txt.length > 1 ? 46 : 50}" style="font-variation-settings:'opsz' 14;font-variant-numeric:lining-nums" fill="${fill}">${txt}</text>${mark}`;
 const label = (txt, fill) =>
-  `<text x="125" y="318" text-anchor="middle" ${BODONI} font-weight="700" font-size="13" letter-spacing="5" fill="${fill}">${txt.toUpperCase()}</text>`;
+  `<text x="125" y="318" text-anchor="middle" ${DISPLAY} font-weight="700" font-size="13" letter-spacing="5" style="font-variant-numeric:lining-nums" fill="${fill}">${txt.toUpperCase()}</text>`;
 
 /** The pressed-ink shadow and the engravings, once per page. */
 export function defs() {

@@ -1,2 +1,2 @@
-<!-- The name in Bodoni, with two cards fanned: a bordeaux back in gold, and a heart on paper. -->
+<!-- The name in Texturina, with two cards fanned: a bordeaux back in gold, and a heart on paper. -->
 <span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-14 12 20)"><rect x="5" y="3" width="11" height="16" rx="1.6" fill="#5b1427" stroke="#e9c66a" stroke-width="0.9" /></g><g transform="rotate(10 12 20)"><rect x="8" y="3" width="11" height="16" rx="1.6" fill="#f8f6f1" stroke="#1c1a22" stroke-width="0.6" /><path d="M13.5 14.2c-1-.8-2.6-2-2.6-3.4 0-.9.7-1.5 1.4-1.5.5 0 1 .3 1.2.8.2-.5.7-.8 1.2-.8.7 0 1.4.6 1.4 1.5 0 1.4-1.6 2.6-2.6 3.4z" fill="#cc2b2b" /></g></svg>Stammtisch</span>

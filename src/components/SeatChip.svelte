@@ -172,7 +172,7 @@
   }
   .total {
     font: 700 14px/1 var(--display);
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .tags {
     position: absolute;

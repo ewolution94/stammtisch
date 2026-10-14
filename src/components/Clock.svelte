@@ -25,7 +25,7 @@
 <style>
   .clock {
     font: 600 13px/1 var(--ewo-mono);
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums tabular-nums;
     padding: 4px 8px 3px;
     border-radius: 999px;
     background: var(--ink);

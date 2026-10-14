@@ -284,7 +284,7 @@
   }
   .points td {
     text-align: right;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .points .d {
     width: 64px;
