@@ -9,6 +9,7 @@
 //   npm run build && node server/server.mjs --port 6411     (or the stammtisch-prod preview)
 //   node tools/qa.mjs [base] [outdir]          GAMES=maumau,doppelkopf,skat,durak W=390 H=844 by default
 //   PEOPLE=2 node tools/qa.mjs …                 a guest joins through the page and plays too
+//   SLOWFONT=2000 node tools/qa.mjs …            the display face arrives late (a slow phone)
 import { webkit } from '../../folio/node_modules/playwright/index.mjs';
 import { mkdirSync } from 'node:fs';
 
@@ -18,6 +19,8 @@ const GAMES = (process.env.GAMES ?? 'maumau,doppelkopf,skat,durak').split(',');
 const W = Number(process.env.W ?? 390), H = Number(process.env.H ?? 844);
 const LANG = process.env.LANG_UI ?? 'en';
 const PEOPLE = Number(process.env.PEOPLE ?? 1);
+/** Hold the display face back this many ms, so the page starts in the fallback (Stichle's check). */
+const SLOWFONT = Number(process.env.SLOWFONT ?? 0);
 mkdirSync(OUT, { recursive: true });
 
 const problems = [];
@@ -25,7 +28,9 @@ const say = (...a) => console.log(...a);
 const browser = await webkit.launch();
 
 async function person(name) {
-  const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2 });
+  // Playwright doesn't route a service worker's requests: once sw.js runs, a held font would come
+  // through it on time, so a late-font run keeps the worker out.
+  const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2, serviceWorkers: SLOWFONT ? 'block' : 'allow' });
   await context.addInitScript((lang) => {
     try {
       localStorage.setItem('ewo:lang', lang);
@@ -55,6 +60,10 @@ async function person(name) {
     };
     requestAnimationFrame(look);
   }, LANG);
+  if (SLOWFONT) await context.route('**/texturina-*.woff2', async (route) => {
+    await new Promise((r) => setTimeout(r, SLOWFONT));
+    await route.continue();
+  });
   const page = await context.newPage();
   page.on('console', (m) => m.type() === 'error' && problems.push(`${name} console: ${m.text()}`));
   page.on('pageerror', (e) => problems.push(`${name} pageerror: ${e.message}`));
