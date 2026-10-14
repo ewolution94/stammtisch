@@ -13,7 +13,7 @@
 //   AUDIT=1 node tools/qa.mjs …                  every shot also checks that text sits in the middle of its box
 import { webkit } from '../../folio/node_modules/playwright/index.mjs';
 import { mkdirSync } from 'node:fs';
-import { digitAudit, textAudit } from './text-audit.mjs';
+import { digitAudit, stackAudit, textAudit } from './text-audit.mjs';
 
 const BASE = process.argv[2] ?? 'http://localhost:6411';
 const OUT = process.argv[3] ?? '/tmp/stammtisch-qa/';
@@ -27,6 +27,7 @@ const SLOWFONT = Number(process.env.SLOWFONT ?? 0);
 const AUDIT = process.env.AUDIT ? Number(process.env.AUDIT) : 0;
 const offCentre = new Map();
 const oldDigits = new Map();
+const offStacks = new Map();
 // The table's bar keeps the game's line in place while the title below it comes and goes (it never jumps).
 const AUDIT_SKIP = ['header.top'];
 mkdirSync(OUT, { recursive: true });
@@ -110,6 +111,10 @@ async function snap(p, label) {
   if (AUDIT) for (const row of await p.page.evaluate(textAudit, { min: AUDIT, skip: AUDIT_SKIP })) {
     const key = `${row.where} | ${row.text.replace(/\d+/g, '#')}`;
     if (!offCentre.has(key)) offCentre.set(key, { ...row, at: label });
+  }
+  if (AUDIT) for (const row of await p.page.evaluate(stackAudit, { min: AUDIT, skip: AUDIT_SKIP })) {
+    const key = `${row.where} | ${row.text.replace(/\d+/g, '#')}`;
+    if (!offStacks.has(key)) offStacks.set(key, { ...row, at: label });
   }
   if (AUDIT) for (const row of await p.page.evaluate(digitAudit)) {
     const key = `${row.where} | ${row.text.replace(/\d+/g, '#')}`;
@@ -295,6 +300,8 @@ if (offCentre.size)
       .map((r) => `${r.off > 0 ? '+' : ''}${r.off} (bias ${r.bias}) ${r.where} "${r.text}" ${r.font} h${r.height} @${r.at}`)
       .join('\n  ')}`,
   );
+if (offStacks.size)
+  problems.push(`stacked lines off the middle of their box in ${offStacks.size} places (px, + low, − high):\n  ${[...offStacks.values()].sort((a, b) => Math.abs(b.off) - Math.abs(a.off)).map((r) => `${r.off > 0 ? '+' : ''}${r.off} ${r.where} "${r.text}" ${r.lines} lines h${r.height} @${r.at}`).join('\n  ')}`);
 if (oldDigits.size)
   problems.push(`old-style digits (a font: shorthand drops lining-nums) in ${oldDigits.size} places:\n  ${[...oldDigits.values()].map((r) => `${r.where} "${r.text}" ${r.font} [${r.numeric}] @${r.at}`).join('\n  ')}`);
 say(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'no problems');
