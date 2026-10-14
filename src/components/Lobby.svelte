@@ -426,6 +426,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     min-height: 72px;
     padding: 10px 6px;
