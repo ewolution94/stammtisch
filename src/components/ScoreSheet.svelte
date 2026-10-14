@@ -50,7 +50,7 @@
           {#each game.match.history as h (h.n)}
             <tr class:void={!h.counts}>
               <td class="n">{h.n}</td>
-              <td class="w">{what(h)}{#if h.factor > 1} ×{h.factor}{/if}</td>
+              <td class="w">{what(h)}{#if h.factor > 1}{` ×${h.factor}`}{/if}</td>
               {#each names as _, i (i)}<td class="p" class:out={!h.seats.includes(i)}>{h.seats.includes(i) || h.points[i] ? score(h.points[i] ?? 0) : '·'}</td>{/each}
             </tr>
           {:else}

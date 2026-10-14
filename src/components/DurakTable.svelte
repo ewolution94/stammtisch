@@ -323,6 +323,7 @@
     background: var(--paper);
     color: var(--ink);
     font: 700 12px/1 var(--display);
+    font-variant-numeric: lining-nums;
     text-align: center;
   }
   /* The bout: up to six attacks, each with the card that beat it laid across. */

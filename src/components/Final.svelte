@@ -220,6 +220,7 @@
   }
   .award b {
     font: 700 17px/1.2 var(--display);
+    font-variant-numeric: lining-nums;
   }
   .award small {
     font-size: 12px;

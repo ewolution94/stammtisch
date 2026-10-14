@@ -82,7 +82,7 @@
 
 <div class="veil" role="dialog" aria-modal="true" aria-label={winnerLine}>
   <div class="card sheet">
-    <span class="label">{t('dealN', { n: rec.n })}{#if rec.factor > 1} · Bock ×{rec.factor}{/if}</span>
+    <span class="label">{t('dealN', { n: rec.n })}{#if rec.factor > 1}{` · Bock ×${rec.factor}`}{/if}</span>
     <h2 class="display">{winnerLine}</h2>
 
     {#if (game.id === 'maumau' || game.id === 'durak') && result.hands}
@@ -109,7 +109,7 @@
       {/if}
       <ul class="items">
         {#each doko.items as item, i (i)}
-          <li><span>{itemText(item.key)}{#if item.by} ({item.by === 're' ? 'Re' : 'Kontra'}){/if}</span><b>+{item.key === 're' || item.key === 'kontra' ? 2 : 1}</b></li>
+          <li><span>{itemText(item.key)}{#if item.by}{` (${item.by === 're' ? 'Re' : 'Kontra'})`}{/if}</span><b>+{item.key === 're' || item.key === 'kontra' ? 2 : 1}</b></li>
         {/each}
         {#each doko.extras as extra, i (`x${i}`)}
           <li class="extra"><span>{t(`extra_${extra.key}` as 'extra_fox')} · {extra.party === 're' ? 'Re' : 'Kontra'}</span><b>+1</b></li>
@@ -124,13 +124,13 @@
         <p class="line soft">{t('skatNullValue', { n: skat.null ?? skat.value })}</p>
       {:else if typeof skat.augen === 'number' && skat.matadors}
         <p class="line soft">
-          {t('skatAugen', { n: skat.augen })} · {skat.matadors.mit ? t('skatMit', { n: skat.matadors.n }) : t('skatOhne', { n: skat.matadors.n })} · {t('skatMult', { n: skat.mult ?? 0 })}{#if skat.schneider} · {t('skatSchneider')}{/if}{#if skat.schwarz} · {t('skatSchwarz')}{/if}
+          {t('skatAugen', { n: skat.augen })} · {skat.matadors.mit ? t('skatMit', { n: skat.matadors.n }) : t('skatOhne', { n: skat.matadors.n })} · {t('skatMult', { n: skat.mult ?? 0 })}{#if skat.schneider}{` · ${t('skatSchneider')}`}{/if}{#if skat.schwarz}{` · ${t('skatSchwarz')}`}{/if}
         </p>
       {/if}
-      <p class="line">{t('skatValue', { n: skat.value })}{#if skat.factor > 1} (Kontra{skat.factor > 2 ? ', Re' : ''}){/if}</p>
+      <p class="line">{t('skatValue', { n: skat.value })}{#if skat.factor > 1}{` (Kontra${skat.factor > 2 ? ', Re' : ''})`}{/if}</p>
     {/if}
     {#if ramsch && Array.isArray(ramsch.augen)}
-      <p class="line soft">{ramsch.augen.map((a, i) => `${nameAt(i)} ${a}`).join(' · ')}{#if ramsch.jungfrau} · Jungfrau ×2{/if}</p>
+      <p class="line soft">{ramsch.augen.map((a, i) => `${nameAt(i)} ${a}`).join(' · ')}{#if ramsch.jungfrau}{' · Jungfrau ×2'}{/if}</p>
     {/if}
     {#if result.skatCards?.length}
       <div class="skat"><span class="label">Skat</span>{#each result.skatCards as c, i (i)}<span class="mini"><Card id={c} /></span>{/each}</div>
@@ -153,7 +153,7 @@
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     {#if view.me && game.seats.includes(view.me) && !result.void}
       <button class="btn primary block" type="button" disabled={ready} onclick={next}>
-        {ready ? t('waitingOthers') : t('nextDeal')}{#if left > 0} · {left}{/if}
+        {ready ? t('waitingOthers') : t('nextDeal')}{#if left > 0}{` · ${left}`}{/if}
       </button>
     {:else}
       <p class="soft center">{t('nextSoon', { n: left })}</p>
@@ -217,6 +217,7 @@
   .vs {
     margin-left: 6px;
     font: 700 15px/1 var(--display);
+    font-variant-numeric: lining-nums;
   }
   .items {
     margin: 0;

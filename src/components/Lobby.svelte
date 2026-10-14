@@ -563,6 +563,7 @@
   }
   .rulesbtn b {
     font: 700 16px/1.2 var(--display);
+    font-variant-numeric: lining-nums;
   }
   .rulesbtn small {
     font-size: 12px;

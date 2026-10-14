@@ -58,7 +58,9 @@
   .bar.scrolled {
     border-bottom-color: rgb(236 230 214 / 0.16);
   }
+  /* A flex box, so the logo is centred in the bar; as a line box it stood on its baseline, high. */
   .home {
+    display: flex;
     text-decoration: none;
   }
   .end {

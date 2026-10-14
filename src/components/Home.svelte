@@ -113,6 +113,7 @@
     margin: 0;
     text-align: center;
     font: 700 15px/1.2 var(--display);
+    font-variant-numeric: lining-nums;
     letter-spacing: 0.04em;
     color: var(--gold-hi);
   }

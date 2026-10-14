@@ -139,6 +139,7 @@
     border: 0;
     color: #fff;
     font: 700 15px/1 var(--display);
+    font-variant-numeric: lining-nums;
     letter-spacing: 0.02em;
     box-shadow: 0 0 0 1px rgb(255 255 255 / 0.4), 0 8px 16px -8px rgb(0 0 0 / 0.8);
   }

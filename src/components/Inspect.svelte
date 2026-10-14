@@ -64,6 +64,7 @@
   }
   .name {
     font: 700 18px/1.2 var(--display);
+    font-variant-numeric: lining-nums;
   }
   .hold {
     flex: 1 1 auto;

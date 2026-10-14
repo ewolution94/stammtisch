@@ -372,6 +372,7 @@
     background: var(--paper);
     color: var(--ink);
     font: 700 13px/1 var(--display);
+    font-variant-numeric: lining-nums;
     text-align: center;
     box-shadow: 0 4px 8px -4px rgb(0 0 0 / 0.7);
   }
@@ -396,6 +397,7 @@
   .penalty {
     color: var(--bad);
     font: 800 16px/1 var(--display);
+    font-variant-numeric: lining-nums;
   }
   .dir {
     position: absolute;
@@ -489,6 +491,7 @@
     background: transparent;
     color: var(--gold-hi);
     font: 800 16px/1 var(--display);
+    font-variant-numeric: lining-nums;
   }
   .mau.on {
     background: linear-gradient(var(--gold-hi), var(--gold));

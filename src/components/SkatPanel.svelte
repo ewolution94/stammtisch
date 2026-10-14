@@ -247,5 +247,6 @@
     background: var(--kontra);
     color: #fff;
     font: 700 15px/1 var(--display);
+    font-variant-numeric: lining-nums;
   }
 </style>

@@ -65,6 +65,7 @@
   ewo-guide::part(next) {
     box-shadow: inset 0 0 0 2px var(--paper), inset 0 0 0 3px var(--gold);
     font: 700 17px/1 var(--display);
+    font-variant-numeric: lining-nums;
   }
   .page {
     display: flex;
@@ -143,6 +144,7 @@
     background: rgb(18 11 7 / 0.72);
     color: var(--gold-hi);
     font: 700 14px/1.1 var(--display);
+    font-variant-numeric: lining-nums;
     white-space: nowrap;
   }
 </style>
