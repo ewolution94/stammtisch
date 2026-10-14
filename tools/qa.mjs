@@ -10,8 +10,10 @@
 //   node tools/qa.mjs [base] [outdir]          GAMES=maumau,doppelkopf,skat,durak W=390 H=844 by default
 //   PEOPLE=2 node tools/qa.mjs …                 a guest joins through the page and plays too
 //   SLOWFONT=2000 node tools/qa.mjs …            the display face arrives late (a slow phone)
+//   AUDIT=1 node tools/qa.mjs …                  every shot also checks that text sits in the middle of its box
 import { webkit } from '../../folio/node_modules/playwright/index.mjs';
 import { mkdirSync } from 'node:fs';
+import { digitAudit, textAudit } from './text-audit.mjs';
 
 const BASE = process.argv[2] ?? 'http://localhost:6411';
 const OUT = process.argv[3] ?? '/tmp/stammtisch-qa/';
@@ -21,6 +23,12 @@ const LANG = process.env.LANG_UI ?? 'en';
 const PEOPLE = Number(process.env.PEOPLE ?? 1);
 /** Hold the display face back this many ms, so the page starts in the fallback (Stichle's check). */
 const SLOWFONT = Number(process.env.SLOWFONT ?? 0);
+/** Text off its box's middle by this many px or more, at every shot (tools/text-audit.mjs). */
+const AUDIT = process.env.AUDIT ? Number(process.env.AUDIT) : 0;
+const offCentre = new Map();
+const oldDigits = new Map();
+// The table's bar keeps the game's line in place while the title below it comes and goes (it never jumps).
+const AUDIT_SKIP = ['header.top'];
 mkdirSync(OUT, { recursive: true });
 
 const problems = [];
@@ -86,7 +94,7 @@ async function overflow(p, label) {
     return [...document.querySelectorAll('body *')]
       .filter((el) => {
         const r = el.getBoundingClientRect();
-        return r.width > 0 && r.right > w + 1 && !el.closest('.hand, .trick, svg, .played, .wrap');
+        return r.width > 0 && r.right > w + 1 && !el.closest('.hand, .trick, svg, .played, .wrap, ewo-guide');
       })
       .slice(0, 5)
       .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join('.')} → ${Math.round(el.getBoundingClientRect().right)}`);
@@ -99,6 +107,14 @@ async function snap(p, label) {
   await p.page.waitForTimeout(450);
   await p.page.screenshot({ path: `${OUT}${String(++shot).padStart(2, '0')}-${label}.png` });
   await overflow(p, label);
+  if (AUDIT) for (const row of await p.page.evaluate(textAudit, { min: AUDIT, skip: AUDIT_SKIP })) {
+    const key = `${row.where} | ${row.text.replace(/\d+/g, '#')}`;
+    if (!offCentre.has(key)) offCentre.set(key, { ...row, at: label });
+  }
+  if (AUDIT) for (const row of await p.page.evaluate(digitAudit)) {
+    const key = `${row.where} | ${row.text.replace(/\d+/g, '#')}`;
+    if (!oldDigits.has(key)) oldDigits.set(key, { ...row, at: label });
+  }
 }
 
 /** One move like a person; returns what it did (or 'wait'). */
@@ -168,6 +184,26 @@ async function step(p) {
   });
   if (tap) await p.page.mouse.click(tap[0], tap[1]);
   return what;
+}
+
+if (AUDIT) {
+  // The screens no game passes through: home, a guide, Settings, and the page a table's link opens.
+  const p = await person('screens');
+  await p.page.goto(BASE, { waitUntil: 'load' });
+  await snap(p, 'home');
+  await p.page.locator('.guides .btn').first().click();
+  await snap(p, 'guide');
+  await p.page.keyboard.press('Escape');
+  await p.page.locator('ewo-settings-button').first().click();
+  await snap(p, 'settings');
+  await p.page.keyboard.press('Escape');
+  const seat = await api(p.page, '/api/rooms', { name: 'Anna', avatar: [1, 2, 3], game: 'skat' });
+  const guest = await person('screens-guest');
+  await guest.page.goto(`${BASE}/${seat.code}`, { waitUntil: 'load' });
+  await guest.page.waitForSelector('.join');
+  await snap(guest, 'join');
+  await guest.context.close();
+  await p.context.close();
 }
 
 for (const game of GAMES) {
@@ -252,4 +288,13 @@ for (const game of GAMES) {
 }
 
 await browser.close();
+if (offCentre.size)
+  problems.push(
+    `text off the middle of its box in ${offCentre.size} places (px, + low, − high; bias: the font's own share):\n  ${[...offCentre.values()]
+      .sort((a, b) => Math.abs(b.off) - Math.abs(a.off))
+      .map((r) => `${r.off > 0 ? '+' : ''}${r.off} (bias ${r.bias}) ${r.where} "${r.text}" ${r.font} h${r.height} @${r.at}`)
+      .join('\n  ')}`,
+  );
+if (oldDigits.size)
+  problems.push(`old-style digits (a font: shorthand drops lining-nums) in ${oldDigits.size} places:\n  ${[...oldDigits.values()].map((r) => `${r.where} "${r.text}" ${r.font} [${r.numeric}] @${r.at}`).join('\n  ')}`);
 say(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'no problems');
