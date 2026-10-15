@@ -11,6 +11,7 @@
 //   PEOPLE=2 node tools/qa.mjs …                 a guest joins through the page and plays too
 //   SLOWFONT=2000 node tools/qa.mjs …            the display face arrives late (a slow phone)
 //   AUDIT=1 node tools/qa.mjs …                  every shot also checks that text sits in the middle of its box
+//   BOTS=master node tools/qa.mjs …               the bots' rank (apprentice, journeyman, master)
 import { webkit } from '../../folio/node_modules/playwright/index.mjs';
 import { mkdirSync } from 'node:fs';
 import { digitAudit, stackAudit, textAudit } from './text-audit.mjs';
@@ -230,6 +231,7 @@ for (const game of GAMES) {
   }
   if (PEOPLE > 1 && !(await host.page.getByText('Gast 1').count())) problems.push(`${game}: the host's lobby doesn't show the guest`);
   const bots = (game === 'skat' ? 3 : 4) - people.length;
+  if (process.env.BOTS) await api(host.page, `/api/rooms/${seat.code}/settings`, { bots: process.env.BOTS }, seat.token);
   for (let i = 0; i < bots; i++) await api(host.page, `/api/rooms/${seat.code}/bot`, { add: true }, seat.token);
   await snap(host, `${game}-lobby`);
   await host.page.getByRole('button', { name: /^(Deal|Geben)$/ }).click();

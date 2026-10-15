@@ -15,6 +15,10 @@
 // padding, a line-height on a block that isn't centred, a baseline alignment).
 // Self-contained (Playwright sends the function's source to the page): no imports, no closures.
 export function textAudit({ min = 1, maxHeight = 96, skip = [] } = {}) {
+  const hidden = (el) => {
+    const r = el?.getBoundingClientRect();
+    return !r || r.width <= 1 || r.height <= 1;
+  };
   const ctx = document.createElement('canvas').getContext('2d');
   const fonts = new Map();
   const fontOf = (cs) => {
@@ -50,7 +54,9 @@ export function textAudit({ min = 1, maxHeight = 96, skip = [] } = {}) {
         if (n.shadowRoot) walk(n.shadowRoot);
         continue;
       }
-      if (n.textContent.trim()) texts.push(n);
+      // Text drawn in an <svg> (an emblem's initial, a card's face) is a picture, not a label (Schätzle).
+      // Nor is text only a screen reader gets (a 1 px clipped sr-only label, Stichle's chips).
+      if (n.textContent.trim() && !n.parentElement?.closest('svg') && !hidden(n.parentElement)) texts.push(n);
     }
   };
   walk(document.body);
@@ -142,6 +148,10 @@ export function textAudit({ min = 1, maxHeight = 96, skip = [] } = {}) {
 // `keep`: families whose old-style digits stay (a face with no lining figures to switch on, like Stichle
 // Display, whose old-style ones the user kept): `digitAudit({ keep: ['Stichle Display'] })`.
 export function digitAudit({ keep = [] } = {}) {
+  const hidden = (el) => {
+    const r = el?.getBoundingClientRect();
+    return !r || r.width <= 1 || r.height <= 1;
+  };
   const ctx = document.createElement('canvas').getContext('2d');
   const faces = new Map();
   // The canvas draws a face's default digits: compare its 9 and 0 with its H.
@@ -171,6 +181,7 @@ export function digitAudit({ keep = [] } = {}) {
       }
       if (!/\d/.test(n.textContent)) continue;
       const el = n.parentElement;
+      if (hidden(el)) continue;
       const cs = getComputedStyle(el);
       if (cs.display === 'none' || cs.visibility === 'hidden') continue;
       if (/lining-nums/.test(cs.fontVariantNumeric) || /lnum/.test(cs.fontFeatureSettings)) continue;
@@ -200,9 +211,16 @@ export function capCentred(family, weight = 700) {
 // out, but the block as a whole should sit in the middle. Measures the ink block, from the top line's
 // cap height to the bottom line's baseline, against the box's middle (Schätzle's price tag sat 2.4 px
 // high: each line keeps its face's room above the caps and below the baseline). Boxes with anything
-// else in the flow above or below the text, and boxes under a rotation (their rect is the rotated
-// shape's bounds), are left out. Same options as textAudit; a box may be taller (`maxHeight` 160).
+// else in the flow above or below the text, boxes under a rotation (their rect is the rotated shape's
+// bounds), and plain block boxes taller than their content (a panel or a list that starts at its top
+// by design; CDNMS's team lists and docks) are left out; buttons and flex or grid boxes still count.
+// Lines are rows whose text overlaps vertically: a name beside a bigger number is one row, not two
+// (CDNMS's score chip). Same options as textAudit; a box may be taller (`maxHeight` 160).
 export function stackAudit({ min = 1, maxHeight = 160, skip = [] } = {}) {
+  const hidden = (el) => {
+    const r = el?.getBoundingClientRect();
+    return !r || r.width <= 1 || r.height <= 1;
+  };
   const ctx = document.createElement('canvas').getContext('2d');
   const fonts = new Map();
   const fontOf = (cs) => {
@@ -248,7 +266,9 @@ export function stackAudit({ min = 1, maxHeight = 160, skip = [] } = {}) {
         if (n.shadowRoot) walk(n.shadowRoot);
         continue;
       }
-      if (n.textContent.trim()) texts.push(n);
+      // Text drawn in an <svg> (an emblem's initial, a card's face) is a picture, not a label (Schätzle).
+      // Nor is text only a screen reader gets (a 1 px clipped sr-only label, Stichle's chips).
+      if (n.textContent.trim() && !n.parentElement?.closest('svg') && !hidden(n.parentElement)) texts.push(n);
     }
   };
   walk(document.body);
@@ -264,7 +284,7 @@ export function stackAudit({ min = 1, maxHeight = 160, skip = [] } = {}) {
     if (!rects.length || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
     const f = fontOf(cs);
     if (!boxes.has(el)) boxes.set(el, []);
-    for (const r of rects) boxes.get(el).push({ t, f, cs, baseline: (r.top + f.ascent + r.bottom - f.descent) / 2 });
+    for (const r of rects) boxes.get(el).push({ t, f, cs, top: r.top, bottom: r.bottom, baseline: (r.top + f.ascent + r.bottom - f.descent) / 2 });
   }
   const moving = document.getAnimations().filter((a) => a.playState === 'running').map((a) => a.effect?.target).filter((t) => t instanceof Element);
   const rows = [];
@@ -272,16 +292,27 @@ export function stackAudit({ min = 1, maxHeight = 160, skip = [] } = {}) {
     if (moving.some((m) => m === el || m.contains(el)) || skip.some((sel) => el.matches(sel))) continue;
     const r = el.getBoundingClientRect();
     if (!r.height || r.height > maxHeight) continue;
-    // The lines, top to bottom: baselines more than 2 px apart start a new line.
-    const sorted = [...items].sort((a, b) => a.baseline - b.baseline);
+    // The lines, top to bottom: text that overlaps the row above by half its height or more belongs to
+    // it; each row keeps its highest cap top and its lowest baseline.
+    const sorted = [...items].sort((a, b) => a.top - b.top);
     const lines = [];
     for (const i of sorted) {
       const last = lines[lines.length - 1];
-      if (last && i.baseline - last.baseline <= 2) last.cap = Math.max(last.cap, i.f.cap);
-      else lines.push({ baseline: i.baseline, cap: i.f.cap });
+      const overlap = last ? Math.min(last.bottom, i.bottom) - Math.max(last.top, i.top) : 0;
+      if (last && overlap >= 0.5 * Math.min(last.bottom - last.top, i.bottom - i.top)) {
+        last.bottom = Math.max(last.bottom, i.bottom);
+        last.capTop = Math.min(last.capTop, i.baseline - i.f.cap);
+        last.baseline = Math.max(last.baseline, i.baseline);
+      } else lines.push({ top: i.top, bottom: i.bottom, capTop: i.baseline - i.f.cap, baseline: i.baseline });
     }
     if (lines.length < 2 || rotated(el)) continue;
-    const blockTop = lines[0].baseline - lines[0].cap, blockBottom = lines[lines.length - 1].baseline;
+    const blockTop = lines[0].capTop, blockBottom = lines[lines.length - 1].baseline;
+    // A plain block box taller than its content starts at its top by design.
+    const bcs = getComputedStyle(el);
+    if (!el.matches('button, [role=button], a, summary') && /^(block|flow-root|list-item)$/.test(bcs.display)) {
+      const inner = r.bottom - (parseFloat(bcs.borderBottomWidth) || 0) - (parseFloat(bcs.paddingBottom) || 0);
+      if (inner - lines[lines.length - 1].bottom > 4) continue;
+    }
     const stacked = [...el.querySelectorAll('*')].some((c) => {
       if (items.some((i) => c.contains(i.t))) return false;
       const cr = c.getBoundingClientRect();

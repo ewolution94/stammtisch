@@ -5,7 +5,7 @@
 // the lock-up the hand is never playable again, so no card is legal).
 //
 //   npm run build && node server/server.mjs --port 6411     (or the stammtisch-prod preview)
-//   GAME=doppelkopf DEALS=3 JITTER=250 node tools/jitter.mjs [base]      (GAME=skat for Skat)
+//   GAME=doppelkopf DEALS=3 JITTER=250 node tools/jitter.mjs [base]      (GAME=skat for Skat; BOTS=master)
 import { webkit } from '../../folio/node_modules/playwright/index.mjs';
 
 const BASE = process.argv[2] ?? 'http://localhost:6411';
@@ -58,6 +58,8 @@ const seat = await api('/api/rooms', { name: 'Anna', avatar: [1, 2, 3], game: GA
 await page.evaluate(([code, s]) => localStorage.setItem(`stammtisch:seat:${code}`, JSON.stringify({ ...s, at: Date.now() })), [seat.code, seat]);
 await page.goto(`${BASE}/${seat.code}`, { waitUntil: 'load' });
 await page.waitForSelector('.lobby');
+// BOTS=master: the bots' rank (a master thinks up to 150 ms a move on the server).
+if (process.env.BOTS) await api(`/api/rooms/${seat.code}/settings`, { bots: process.env.BOTS }, seat.token);
 for (let i = 0; i < (GAME === 'skat' ? 2 : 3); i++) await api(`/api/rooms/${seat.code}/bot`, { add: true }, seat.token);
 await page.getByRole('button', { name: /^Deal$/ }).click();
 await page.waitForSelector('.table');
@@ -71,6 +73,7 @@ const look = () =>
     legal: Boolean(document.querySelector('.hand .slot[aria-disabled="false"]')),
     veil: Boolean(document.querySelector('.veil')),
     deal: document.querySelector('.top .label')?.textContent ?? '',
+    over: Boolean(document.querySelector('.final')),
   }));
 const tap = async (selector) => {
   const at = await page.evaluate((s) => {
@@ -88,6 +91,8 @@ let last = '';
 let verdict = 'clean';
 while (deals < DEALS) {
   const s = await look();
+  // The game can end before DEALS were scored: a deal everyone passed counts as one of the match's.
+  if (s.over) break;
   const key = JSON.stringify(s);
   if (key !== last) {
     last = key;
