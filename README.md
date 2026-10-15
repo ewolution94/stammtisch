@@ -12,6 +12,12 @@ Herz, Schellen; the Unter, Ober and König as paper cuts, the numbers in letterp
   wanted, and the game's house rules (each game's defaults are the official rules, or the user's
   picks). Bots fill the empty chairs; with more at the table than the game takes, the dealer sits
   out.
+- **Bots in three ranks** (the user's pick, 2026-10-14, as in Stichle): Lehrling, Geselle, Meister
+  (Apprentice, Journeyman, Master; Mau-Mau the first two). The lobby's "Bots" sets every bot's rank,
+  each new one's and the stand-ins' for anyone away; a bot's sheet sets its own. Each bot's
+  temperament comes with its name (cautious, steady, bold) and leans what it dares: a solo, an
+  announcement, a Skat bid. The rank shows in the lobby and in the bot's sheet, not on the phone's
+  place cards (the user, 2026-10-15).
 - **Cards you handle,** Folio's card kit (from Stichle): your hand is a fan; drag a card up or flick
   it, or tap it twice; a card you may not play shakes and drops back; hold one to look at it big (it
   tilts with the phone). Picking several cards (the Skat to put back, poverty's three) is tapping
@@ -32,7 +38,11 @@ Herz, Schellen; the Unter, Ober and König as paper cuts, the numbers in letterp
   state, `moves()` lists a seat's legal moves, `act()` makes one and returns the events for the
   table, `view()` is what one seat may see (never another hand). No I/O, no clock, no randomness of
   its own. `index.mjs` lists them with their bots.
-- **`server/bots/`**: a bot per game, deterministic, looking only at its own seat's view.
+- **`server/bots/`**: a bot per game in its ranks, deterministic, looking only at what its own seat
+  sees. `rank.mjs` holds what they share: the ranks, the seeded draws, the master's search (it deals
+  out the unseen cards many ways that fit what its seat has seen, plays each choice to the end with
+  the journeyman's rules, and keeps a hard 150 ms stop). `tests/bots.test.mjs` shuffles everything a
+  seat can't see and expects the same move from every rank.
 - **`server/rooms.mjs`**: the rooms (adapted from Stichle's `game.mjs`): codes, seats, the host,
   the lobby's settings, a game played deal after deal through the match, the clock per move, bots and
   the absent, one view per page. `api.mjs` (JSON moves, SSE views), `server.mjs` (the production
@@ -142,6 +152,7 @@ npm test             # the engines, the bots, the match and the rooms (node:test
 npm run check        # svelte-check
 npm run build && npm start -- --port 6411    # the production server with the built page
 node tools/qa.mjs http://localhost:6411      # one person and bots at each game in WebKit, 390 px
+node tools/ladder.mjs skat 300               # the ranks against each other over many deals
 ```
 
 The QA script borrows Playwright from Folio's checkout next door (`../folio/node_modules`).

@@ -11,7 +11,8 @@ import { botMove as skatBot } from '../bots/skat.mjs';
 import { botMove as durakBot } from '../bots/durak.mjs';
 
 /**
- * @typedef {{ module: any, bot: (state: any, seat: number) => Record<string, unknown>, tricks: boolean }} GameDef
+ * @typedef {{ module: any, bot: (state: any, seat: number, style?: import('../bots/rank.mjs').Style) => Record<string, unknown>, tricks: boolean }} GameDef
+ *   bot: the move for a seat, at a rank and with a temperament (server/bots/rank.mjs)
  *   tricks: the game takes tricks (a pause and a sweep after each one)
  */
 

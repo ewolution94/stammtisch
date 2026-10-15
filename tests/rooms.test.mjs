@@ -27,11 +27,11 @@ test('a room: the host makes it, others join by its code, everyone sees the same
 
 test('settings: the host picks the game, the rounds, the clock and each game’s house rules; invalid values are ignored', () => {
   const merged = mergeSettings({ ...DEFAULT_SETTINGS }, { skat: { ...GAMES.skat.module.RULES } }, { game: 'skat', rounds: 2, clock: 'quick', rules: { skat: { ramsch: true, scoring: 'nonsense' } } });
-  assert.deepEqual(merged.settings, { game: 'skat', clock: 'quick', rounds: 2 });
+  assert.deepEqual(merged.settings, { game: 'skat', clock: 'quick', rounds: 2, bots: 'journeyman' });
   assert.equal(merged.rules.skat.ramsch, false, 'one invalid value refuses the whole patch');
   const ok = mergeSettings({ ...DEFAULT_SETTINGS }, { skat: { ...GAMES.skat.module.RULES } }, { rules: { skat: { ramsch: true } } });
   assert.equal(ok.rules.skat.ramsch, true);
-  assert.deepEqual(mergeSettings(DEFAULT_SETTINGS, {}, { game: 'poker', rounds: 5, clock: 'slow' }).settings, DEFAULT_SETTINGS);
+  assert.deepEqual(mergeSettings(DEFAULT_SETTINGS, {}, { game: 'poker', rounds: 5, clock: 'slow', bots: 'grandmaster' }).settings, DEFAULT_SETTINGS);
 
   const { rooms } = setup();
   const t = table(rooms, 1);
@@ -40,6 +40,28 @@ test('settings: the host picks the game, the rounds, the clock and each game’s
   assert.equal(t.pages[1].view.rules.maumau.ace, true);
   assert.equal(t.pages[1].view.rules.doppelkopf.dulle, 'first', 'the other games keep theirs');
   refused(() => t.act(t.seats[1], 'settings', { game: 'skat' }), 'not-host');
+});
+
+test('bots in three ranks: the table’s rank is every bot’s, the host sets one bot’s own; each has its temperament', () => {
+  const { rooms } = setup();
+  const t = table(rooms, 1);
+  t.act(t.host, 'bot', { add: true });
+  t.act(t.host, 'bot', { add: true });
+  const bots = () => t.pages[0].view.players.filter((p) => p.bot);
+  assert.deepEqual(bots().map((b) => b.level), ['journeyman', 'journeyman'], 'the default');
+  assert.deepEqual(bots().map((b) => b.temper), ['bold', 'cautious'], 'Robo Rita bold, Bot Bernd cautious');
+  t.act(t.host, 'settings', { bots: 'master' });
+  assert.equal(t.pages[1].view.settings.bots, 'master');
+  assert.deepEqual(bots().map((b) => b.level), ['master', 'master'], 'the table’s rank is every bot’s');
+  t.act(t.host, 'bot', { player: bots()[1].id, level: 'apprentice' });
+  assert.deepEqual(bots().map((b) => b.level), ['master', 'apprentice'], 'one bot’s own');
+  t.act(t.host, 'bot', { add: true });
+  assert.equal(bots()[2].level, 'master', 'a new bot comes at the table’s rank');
+  refused(() => t.act(t.host, 'bot', { player: bots()[0].id, level: 'grandmaster' }), 'level');
+  refused(() => t.act(t.host, 'bot', { player: t.seats[1].player, level: 'master' }), 'no-player');
+  refused(() => t.act(t.seats[1], 'bot', { player: bots()[0].id, level: 'apprentice' }), 'not-host');
+  // A human's page never shows a rank.
+  assert.ok(t.pages[0].view.players.filter((p) => !p.bot).every((p) => !('level' in p)));
 });
 
 test('starting needs the game’s table: Doppelkopf four to six, Skat three or four, Mau-Mau two to six', () => {

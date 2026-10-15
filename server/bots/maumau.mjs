@@ -1,18 +1,38 @@
-// A Mau-Mau bot: legal and sensible, deterministic (the same state gives the same move). It keeps its
-// Unter for when nothing else fits, sheds the suit it holds most of (so the pile stays in a suit it
-// can follow), puts a 7 or an 8 on whoever is close to going out, passes a waiting 7 on when it can,
-// and never forgets "Mau!". It looks only at what its own seat may see.
+// A Mau-Mau bot in two ranks (server/bots/rank.mjs: the cards decide most of Mau-Mau, so there's no
+// master), deterministic (the same state gives the same move). It looks only at what its own seat
+// may see. The journeyman keeps its Unter for when nothing else fits, sheds the suit it holds most of
+// (so the pile stays in a suit it can follow), puts a 7 or an 8 on whoever is close to going out,
+// passes a waiting 7 on when it can, and never forgets "Mau!". The apprentice puts any card that fits
+// every other move (an Unter too, early), and forgets "Mau!" one time in four.
 
 import { SUITS, parseCard } from '../core/cards.mjs';
 import { cost, moves, view } from '../games/maumau.mjs';
+import { seeded } from './rank.mjs';
 
 /** @typedef {import('../games/maumau.mjs').State} State */
 
 /**
  * The bot's move for `seat`, whose turn it is.
- * @param {State} state  @param {number} seat
+ * @param {State} state  @param {number} seat  @param {import('./rank.mjs').Style} [style]
  */
-export function botMove(state, seat) {
+export function botMove(state, seat, { level = 'journeyman' } = {}) {
+  let move = ruleMove(state, seat);
+  if (level !== 'apprentice') return move;
+  const v = view(state, seat);
+  const r = seeded(`apprentice|${state.dealer}|${seat}|${/** @type {string[]} */ (v.hand).join(',')}|${state.pile.length}|${state.pile.at(-1)}|${v.penalty}|${v.drawn ?? ''}`);
+  // Any card that fits, every other move (not on a waiting 7: that one has only one answer).
+  if (move.type === 'play' && !v.penalty && !v.drawn && r() < 0.5) {
+    const plays = moves(state, seat).filter((m) => m.type === 'play');
+    const other = plays[Math.floor(r() * plays.length)];
+    if (other) move = { ...pickWish(other, /** @type {string[]} */ (v.hand), state), ...('mau' in move ? { mau: true } : {}) };
+  }
+  // "Mau!" forgotten now and then.
+  if ('mau' in move && r() < 0.25) delete move.mau;
+  return move;
+}
+
+/** The journeyman's move. @param {State} state  @param {number} seat */
+function ruleMove(state, seat) {
   const v = view(state, seat);
   const legal = moves(state, seat);
   if (!legal.length) throw new Error('not this seat’s turn');

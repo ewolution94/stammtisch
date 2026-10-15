@@ -12,10 +12,25 @@ export const GAMES: GameId[] = ['maumau', 'doppelkopf', 'skat', 'durak'];
 /** A card id, the French way whatever the deck shows: "h-10", "c-Q" (an Eichel-Ober), "d-A". */
 export type CardId = string;
 
+/** A bot's rank (the user, 2026-10-14, as in Stichle): as in a guild, weakest first (server/bots/rank.mjs). */
+export type Level = 'apprentice' | 'journeyman' | 'master';
+export const LEVELS: Level[] = ['apprentice', 'journeyman', 'master'];
+/** The ranks a game has: Mau-Mau two (the cards decide most of it). */
+export const levelsFor = (game: GameId): Level[] => (game === 'maumau' ? LEVELS.slice(0, 2) : LEVELS);
+/** The rank a bot plays a game at: one the game hasn't (a master at Mau-Mau) is its best. */
+export const levelIn = (game: GameId, level: Level | undefined): Level => {
+  const ranks = levelsFor(game);
+  return level && ranks.includes(level) ? level : ranks[ranks.length - 1];
+};
+/** A bot's temperament, which comes with its name: how much it dares. */
+export type Temper = 'cautious' | 'steady' | 'bold';
+
 export interface Settings {
   game: GameId;
   clock: ClockChoice;
   rounds: number;
+  /** The bots' rank: every bot's (until the host gives one its own) and the stand-ins'. */
+  bots?: Level;
 }
 
 export type Rules = Record<string, boolean | string | number>;
@@ -26,6 +41,9 @@ export interface Player {
   avatar: Avatar;
   online: boolean;
   bot: boolean;
+  /** A bot's rank and temperament. */
+  level?: Level;
+  temper?: Temper;
 }
 
 export interface Played {

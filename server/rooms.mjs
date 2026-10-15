@@ -17,6 +17,7 @@ import { RuleError } from './core/cards.mjs';
 import { activeSeats, createMatch, endDeal, isOver, nextDeal } from './core/match.mjs';
 import { cleanAvatar, randomAvatar } from './avatar.mjs';
 import { GAMES, GAME_IDS, tableRange } from './games/index.mjs';
+import { LEVELS, levelIn } from './bots/rank.mjs';
 
 export class GameError extends Error {
   /** @param {string} code  @param {number} [status]  @param {Record<string, unknown>} [detail] */
@@ -41,7 +42,8 @@ export const ROUNDS = Object.freeze([1, 2, 3, 4, 6]);
 /** Every game's house rules at their defaults (the user's picks, 2026-10-13). */
 const defaultRules = () => Object.fromEntries(GAME_IDS.map((id) => [id, { ...GAMES[id].module.RULES }]));
 
-export const DEFAULT_SETTINGS = Object.freeze({ game: 'doppelkopf', clock: 'off', rounds: 1 });
+/** bots: the rank every bot at the table plays (and the stand-ins for anyone away), until the host gives one its own. */
+export const DEFAULT_SETTINGS = Object.freeze({ game: 'doppelkopf', clock: 'off', rounds: 1, bots: 'journeyman' });
 
 export const LIMITS = {
   rooms: 200,
@@ -81,6 +83,8 @@ const BOT_THINK = [800, 1700];
 const EVENTS_KEPT = 16;
 
 const BOT_NAMES = ['Robo Rita', 'Bot Bernd', 'Karo Klaus', 'Trumpf Tina', 'Kreuz Kurt', 'Dulle Doris'];
+/** Each bot's temperament comes with its name (the user: "go for your gut"; the first four as in Stichle). */
+const BOT_TEMPER = { 'Robo Rita': 'bold', 'Bot Bernd': 'cautious', 'Karo Klaus': 'steady', 'Trumpf Tina': 'bold', 'Kreuz Kurt': 'cautious', 'Dulle Doris': 'steady' };
 
 /**
  * @typedef {{ now(): number, setTimeout(fn: () => void, ms: number): any, clearTimeout(handle: any): void }} Clock
@@ -180,6 +184,8 @@ export function createRooms({ clock = realClock, randomInt = (n) => cryptoInt(n)
       name,
       avatar: cleanAvatar(rawAvatar, random),
       bot,
+      // A bot's rank (the table's, until the host gives it its own) and its temperament.
+      ...(bot ? { level: r.settings.bots ?? 'journeyman', temper: BOT_TEMPER[base] ?? 'steady' } : {}),
       joined: clock.now(),
       online: 0,
       offlineSince: clock.now(),
@@ -320,7 +326,15 @@ export function createRooms({ clock = realClock, randomInt = (n) => cryptoInt(n)
       return;
     }
     const def = GAMES[g.id];
-    playMove(r, seat, def.bot(s, seat));
+    playMove(r, seat, def.bot(s, seat, styleOf(r, seat)));
+  }
+
+  /** How the bot for `seat` plays: a bot its own rank and temperament; a stand-in the table's rank. */
+  function styleOf(r, seat) {
+    const g = r.game;
+    const p = r.players.get(g.seats[g.dealSeats[seat]]);
+    if (p?.bot) return { level: levelIn(g.id, p.level ?? 'journeyman'), temper: p.temper ?? 'steady' };
+    return { level: levelIn(g.id, r.settings.bots ?? 'journeyman'), temper: 'steady' };
   }
 
   /** A move in the deal, by the game's seat `seat` (the server checks the rules). */
@@ -429,7 +443,7 @@ export function createRooms({ clock = realClock, randomInt = (n) => cryptoInt(n)
       rules: r.rules,
       notice: r.notice,
       order: seated(r).map((p) => p.id),
-      players: present(r).map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, online: isOnline(p), bot: p.bot })),
+      players: present(r).map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, online: isOnline(p), bot: p.bot, ...(p.bot ? { level: p.level ?? 'journeyman', temper: p.temper ?? 'steady' } : {}) })),
       game: r.game ? gameView(r, r.game, me) : null,
       now: clock.now(),
     };
@@ -644,6 +658,8 @@ export function createRooms({ clock = realClock, randomInt = (n) => cryptoInt(n)
           requireHost(r, p);
           requirePhase(r, 'lobby', 'final');
           const next = mergeSettings(r.settings, r.rules, body);
+          // The table's rank is every bot's: changing it changes theirs (a bot's own rank is set on it).
+          if (next.settings.bots !== r.settings.bots) for (const q of present(r)) if (q.bot) q.level = next.settings.bots;
           r.settings = next.settings;
           r.rules = next.rules;
           touch(r);
@@ -742,6 +758,13 @@ export function createRooms({ clock = realClock, randomInt = (n) => cryptoInt(n)
             const name = BOT_NAMES.find((n) => !used.has(n)) ?? BOT_NAMES[0];
             const bot = addPlayer(r, name, randomAvatar(random), true);
             if (!r.order.includes(bot.id)) r.order.push(bot.id);
+            touch(r);
+          } else if (body?.level !== undefined) {
+            // One bot's own rank.
+            const target = r.players.get(String(body?.player ?? ''));
+            if (!target?.bot || target.left) throw new GameError('no-player', 404);
+            if (!LEVELS.includes(body.level)) throw new GameError('level');
+            target.level = body.level;
             touch(r);
           } else {
             const target = body?.player ? r.players.get(String(body.player)) : bots.at(-1);
@@ -876,13 +899,14 @@ export function cleanText(raw, max) {
 
 /**
  * The settings and house rules with a host's changes applied; anything invalid is ignored.
- * body: { game?, clock?, rounds?, rules?: { [game]: { …a rule: value } } }
+ * body: { game?, clock?, rounds?, bots?, rules?: { [game]: { …a rule: value } } }
  */
 export function mergeSettings(settings, rules, body) {
   const next = { ...settings };
   if (GAME_IDS.includes(body?.game)) next.game = body.game;
   if (CLOCKS.includes(body?.clock)) next.clock = body.clock;
   if (ROUNDS.includes(body?.rounds)) next.rounds = body.rounds;
+  if (LEVELS.includes(body?.bots)) next.bots = body.bots;
   const out = { ...rules };
   if (body?.rules && typeof body.rules === 'object') {
     for (const id of GAME_IDS) {
