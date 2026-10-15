@@ -13,7 +13,8 @@
 //   AUDIT=1 node tools/qa.mjs …                  every shot also checks that text sits in the middle of its box
 //   BOTS=master node tools/qa.mjs …               the bots' rank (apprentice, journeyman, master)
 //   SEATS=board node tools/qa.mjs …               the players round the table (the default) or on a board above it
-import { webkit } from '../../folio/node_modules/playwright/index.mjs';
+//   W=1440 H=900 BROWSER=chromium node tools/qa.mjs …   the desktop table (from 1100 × 740 up), in Chromium too
+import { chromium, webkit } from '../../folio/node_modules/playwright/index.mjs';
 import { mkdirSync } from 'node:fs';
 import { digitAudit, stackAudit, textAudit } from './text-audit.mjs';
 
@@ -36,7 +37,8 @@ mkdirSync(OUT, { recursive: true });
 
 const problems = [];
 const say = (...a) => console.log(...a);
-const browser = await webkit.launch();
+// BROWSER=chromium: the desktop table's zoom behaves differently there (Stichle checks both).
+const browser = await (process.env.BROWSER === 'chromium' ? chromium : webkit).launch();
 
 async function person(name) {
   // Playwright doesn't route a service worker's requests: once sw.js runs, a held font would come
@@ -52,7 +54,8 @@ async function person(name) {
     // The table never changes size or place while you play (the user, 2026-10-13, on Stichle: "it
     // cannot jump"): every frame, the felt, the middle, your place card and your hand's box are
     // measured, and any move is written down with what the status line said (Stichle's check).
-    const watched = ['.table .cloth', '.table .middle', '.table .dock > div.mine', '.table .hand'];
+    // The desktop table (from 1100 × 740 up) has its own: the cloth, the play's room, your corner, the hand.
+    const watched = ['.table .cloth', '.table .middle', '.table .dock > div.mine', '.table .hand', '.desk .desk-cloth', '.desk .desk-middle', '.desk .desk-me', '.desk .hand'];
     const last = new Map();
     window.__jumps = [];
     const look = () => {
@@ -153,7 +156,7 @@ async function step(p) {
         }
         return 'scored';
       }
-      const panel = document.querySelector('.dock .panel');
+      const panel = document.querySelector('.dock .panel, .desk-float .panel');
       if (panel) {
         // A Mau-Mau wish: the first suit.
         const suit = panel.querySelector('.suitbtn');
@@ -243,7 +246,7 @@ for (const game of GAMES) {
   for (let i = 0; i < bots; i++) await api(host.page, `/api/rooms/${seat.code}/bot`, { add: true }, seat.token);
   await snap(host, `${game}-lobby`);
   await host.page.getByRole('button', { name: /^(Deal|Geben)$/ }).click();
-  for (const p of people) await p.page.waitForSelector('.table');
+  for (const p of people) await p.page.waitForSelector('.table, .desk');
   say(game, 'dealt', seat.code);
   const done = new Set();
   let steps = 0;
