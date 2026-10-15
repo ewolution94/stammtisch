@@ -47,7 +47,8 @@
 
 :root,
 :root[data-theme='dark'] {
-  color-scheme: light;
+  /* "only": no forced dark from the browser (Android's auto dark mode darkens the paper). */
+  color-scheme: only light;
   --ewo-light: 1;
 
   /* The room and the table. */
