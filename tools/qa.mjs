@@ -12,6 +12,7 @@
 //   SLOWFONT=2000 node tools/qa.mjs …            the display face arrives late (a slow phone)
 //   AUDIT=1 node tools/qa.mjs …                  every shot also checks that text sits in the middle of its box
 //   BOTS=master node tools/qa.mjs …               the bots' rank (apprentice, journeyman, master)
+//   SEATS=board node tools/qa.mjs …               the players round the table (the default) or on a board above it
 import { webkit } from '../../folio/node_modules/playwright/index.mjs';
 import { mkdirSync } from 'node:fs';
 import { digitAudit, stackAudit, textAudit } from './text-audit.mjs';
@@ -41,9 +42,10 @@ async function person(name) {
   // Playwright doesn't route a service worker's requests: once sw.js runs, a held font would come
   // through it on time, so a late-font run keeps the worker out.
   const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2, serviceWorkers: SLOWFONT ? 'block' : 'allow' });
-  await context.addInitScript((lang) => {
+  await context.addInitScript(([lang, seats]) => {
     try {
       localStorage.setItem('ewo:lang', lang);
+      if (seats) localStorage.setItem('stammtisch:seats', seats);
       // The table's guide opens once on a first visit: seen already.
       localStorage.setItem('stammtisch:guide', '1');
     } catch {}
@@ -69,7 +71,7 @@ async function person(name) {
       requestAnimationFrame(look);
     };
     requestAnimationFrame(look);
-  }, LANG);
+  }, [LANG, process.env.SEATS ?? '']);
   if (SLOWFONT) await context.route('**/texturina-*.woff2', async (route) => {
     await new Promise((r) => setTimeout(r, SLOWFONT));
     await route.continue();
@@ -156,6 +158,12 @@ async function step(p) {
         // A Mau-Mau wish: the first suit.
         const suit = panel.querySelector('.suitbtn');
         if (suit) return suit.click(), 'wish';
+        // Skat's bidding like a person: up to 30, then pass (two of these bidding on would reach 264).
+        const bid = button(/^(Bid \d+|\d+ sagen)$/, panel);
+        if (bid && Number(/\d+/.exec(bid.textContent)?.[0]) > 30) {
+          const pass = button(/^(Pass|Passe)$/, panel);
+          if (pass) return pass.click(), pass.textContent.trim();
+        }
         for (const re of [/^(Healthy|Gesund)$/, /^(Pick up the Skat|Skat aufnehmen)$/, /^(Declare|Ansagen)$/, /^(Play \(18\)|Spielen \(18\))$/, /^(Yes|Ja), \d+/, /^(Bid|\d+ sagen)/, /^(Take it|Nehmen)$/]) {
           const b = button(re, panel);
           if (b) return b.click(), b.textContent.trim();
