@@ -11,6 +11,7 @@
   import { errorText, i18n, setLanguage, systemLang, t, type LangChoice } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
   import { play, setSound, sound } from '../lib/sound.svelte';
+  import { prefs, setSeats, type Seating } from '../lib/prefs.svelte';
   import { actAt } from '../lib/waits';
   import { ui } from '../lib/ui.svelte';
 
@@ -113,6 +114,14 @@
           <option value="system">{t('langSystem')}</option>
           <option value="de">Deutsch</option>
           <option value="en">English</option>
+        </ewo-segmented>
+      </div>
+      <!-- Where the other players' place cards are (the user, 2026-10-15): round the table, or on a board. -->
+      <div class="row">
+        <span class="name">{t('seating')}</span>
+        <ewo-segmented stretch value={prefs.seats} label={t('seating')} onchange={(e) => setSeats(e.detail.value as Seating)}>
+          <option value="table">{t('seating_table')}</option>
+          <option value="board">{t('seating_board')}</option>
         </ewo-segmented>
       </div>
       <div class="row">

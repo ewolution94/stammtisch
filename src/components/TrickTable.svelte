@@ -10,7 +10,8 @@
   import { callName, contractName, dealNumber, skatGame, tricksText } from '../lib/games';
   import { errorText, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
-  import { angleOf, idOfKey, keyed, slotOffset, trickCardWidth, trickPhase, twist, TRICK_REVEAL } from '../lib/table';
+  import { angleOf, idOfKey, keyed, seatSpots, slotOffset, trickCardWidth, trickPhase, twist, TRICK_REVEAL } from '../lib/table';
+  import { prefs } from '../lib/prefs.svelte';
   import { actAt } from '../lib/waits';
   import { askTilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -20,6 +21,8 @@
   import Inspect from './Inspect.svelte';
   import ScoreSheet from './ScoreSheet.svelte';
   import SeatChip from './SeatChip.svelte';
+  import RailSeats from './RailSeats.svelte';
+  import SeatBoard from './SeatBoard.svelte';
   import Settings from './Settings.svelte';
   import SkatPanel from './SkatPanel.svelte';
   import TableTop from './TableTop.svelte';
@@ -38,6 +41,13 @@
   const playerAt = (seat: number) => view.players.find((p) => p.id === game.seats[game.dealSeats[seat]]);
   const nameAt = (seat: number) => (seat === mine ? t('you') : (playerAt(seat)?.name ?? '?'));
   const others = $derived(Array.from({ length: n - 1 }, (_, i) => (home + 1 + i) % n));
+  // Where the other players' place cards are (Settings → Players; the user, 2026-10-15, as in
+  // Stichle): round the table, each on the rail where they sit (the default), or on a board above
+  // the cloth, everyone in playing order, you last.
+  const onBoard = $derived(prefs.seats === 'board');
+  let clothW = $state(360);
+  let clothH = $state(480);
+  const spots = $derived(seatSpots(others, mine, n, clothW, clothH));
   /** With more at the table than play: who sits this deal out. */
   const sittingOut = $derived(game.seats.map((_, t) => t).filter((t) => !game.dealSeats.includes(t)));
   const myTurn = $derived(mine >= 0 && game.phase === 'deal' && game.waiting.includes(mine));
@@ -220,24 +230,42 @@
   const dealNo = $derived(dealNumber(game));
 </script>
 
+<!-- A seat's place card, in the shape its place asks for: round the table, narrow, or on the board. -->
+{#snippet chipOf(seat: number, shape: '' | 'narrow' | 'board')}
+  {@const info = seatInfo(seat)}
+  {@const me = mine >= 0 && seat === mine}
+  <SeatChip
+    {room}
+    player={playerAt(seat)}
+    {me}
+    narrow={shape === 'narrow'}
+    board={shape === 'board'}
+    line={info.line}
+    tags={info.tags}
+    total={game.match.totals[game.dealSeats[seat]] ?? 0}
+    dealer={deal?.dealer === seat}
+    active={me ? myTurn : game.phase === 'deal' && game.waiting.includes(seat)}
+    gone={!me && game.gone[game.dealSeats[seat]]}
+    endsAt={game.endsAt}
+  />
+{/snippet}
+
 <div class="table">
   <TableTop {game} title={t(`game_${game.id}`)} sub={contract} extra={calls} {dealNo} onsheet={() => (sheetOpen = true)} onsettings={() => (settingsOpen = true)} />
 
-  <div class="felt cloth">
+  {#if onBoard}
+    <SeatBoard order={[...others, home]}>{#snippet chip(seat)}{@render chipOf(seat, 'board')}{/snippet}</SeatBoard>
+  {/if}
+
+  <div class="felt cloth" class:boarded={onBoard} bind:clientWidth={clothW} bind:clientHeight={clothH}>
     {#if sittingOut.length}
       <p class="out">{t('sitsOut', { names: sittingOut.map((s) => view.players.find((p) => p.id === game.seats[s])?.name ?? '?').join(', ') })}</p>
     {/if}
-    <div class="seats" style:--count={others.length}>
-      {#each others as seat, i (seat)}
-        {@const info = seatInfo(seat)}
-        <div class="far" style:--lift="{Math.round((1 - Math.sin(((i + 1) / (others.length + 1)) * Math.PI)) * 14)}px">
-          <SeatChip {room} player={playerAt(seat)} compact line={info.line} tags={info.tags} total={game.match.totals[game.dealSeats[seat]] ?? 0} dealer={deal?.dealer === seat} active={game.phase === 'deal' && game.waiting.includes(seat)} gone={game.gone[game.dealSeats[seat]]} endsAt={game.endsAt} />
-          <span class="held" aria-label={t('cardsLeft', { n: deal?.counts[seat] ?? 0 })}>
-            {#each { length: Math.min(deal?.counts[seat] ?? 0, 8) } as _, k (k)}<i style:--k={k - (Math.min(deal?.counts[seat] ?? 0, 8) - 1) / 2}></i>{/each}
-          </span>
-        </div>
-      {/each}
-    </div>
+    {#if !onBoard}
+      <RailSeats {spots} held={(seat) => deal?.counts[seat] ?? 0} label={(seat) => t('cardsLeft', { n: deal?.counts[seat] ?? 0 })}>
+        {#snippet chip(spot)}{@render chipOf(spot.seat, spot.narrow ? 'narrow' : '')}{/snippet}
+      </RailSeats>
+    {/if}
 
     {#if skat?.open && skat.declarer !== null && skat.declarer !== mine}
       <div class="open" aria-label={t('skatOpen', { name: nameAt(skat.declarer) })}>
@@ -252,7 +280,7 @@
     </div>
   </div>
 
-  <div class="dock">
+  <div class="dock" class:bare={onBoard}>
     {#if error}
       <p class="toast" role="alert">{error}</p>
     {:else if status && !panelOpen}
@@ -266,10 +294,7 @@
     {/if}
 
     <div class="mine">
-      {#if mine >= 0}
-        {@const info = seatInfo(mine)}
-        <SeatChip {room} player={playerAt(mine)} me line={info.line} tags={info.tags} total={game.match.totals[game.dealSeats[mine]] ?? 0} dealer={deal?.dealer === mine} active={myTurn} endsAt={game.endsAt} />
-      {/if}
+      {#if !onBoard && n > 0}{@render chipOf(home, '')}{/if}
     </div>
 
     <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
@@ -313,54 +338,26 @@
       padding-inline: max(16px, calc((100vw - 640px) / 2));
     }
   }
+  /* The cloth: from under the bar to your seat, which sits on its near edge. Round the table the
+     others' cards sit on its rail, the far ones over its top edge: the play's room starts under them. */
   .cloth {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
     margin: 22px 6px -30px;
-    padding: 18px 12px 34px;
+    padding: 50px 12px 34px;
+  }
+  /* On the board the cloth holds nobody's card: only the play, and room for it. */
+  .cloth.boarded {
+    margin: 12px 6px 8px;
+    padding: 16px 12px;
   }
   .out {
     margin: -6px 0 6px;
     text-align: center;
     font: 600 12px/1.3 var(--ewo-sans);
     color: var(--on-cloth-2);
-  }
-  .seats {
-    display: grid;
-    grid-template-columns: repeat(var(--count), minmax(0, 1fr));
-    gap: 6px;
-    padding-bottom: 14px;
-  }
-  .far {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    translate: 0 var(--lift);
-  }
-  .far :global(.seat) {
-    width: 100%;
-    max-width: 120px;
-  }
-  .held {
-    position: relative;
-    height: 16px;
-    width: 40px;
-  }
-  .held i {
-    position: absolute;
-    left: calc(50% - 5px);
-    bottom: 0;
-    width: 10px;
-    height: 14px;
-    border-radius: 1.5px;
-    background: var(--back-ground);
-    box-shadow: 0 0 0 1px var(--back-line), inset 0 0 0 2px rgb(255 255 255 / 0.08);
-    transform-origin: 50% 120%;
-    rotate: calc(var(--k) * 9deg);
   }
   /* An Ouvert declarer's hand, open on the table. */
   .open {
@@ -413,6 +410,14 @@
   .mine {
     display: flex;
     justify-content: center;
+  }
+  /* On the board your card is up there too: the dock keeps your hand, the status a little higher. */
+  .bare .mine {
+    min-height: 8px;
+  }
+  .bare .status,
+  .bare .toast {
+    bottom: calc(100% + 20px);
   }
   .watching {
     margin: 10px 0 18px;

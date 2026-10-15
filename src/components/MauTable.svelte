@@ -11,7 +11,8 @@
   import { cardsText, dealNumber, suitName } from '../lib/games';
   import { errorText, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
-  import { stackPlace } from '../lib/table';
+  import { seatSpots, stackPlace } from '../lib/table';
+  import { prefs } from '../lib/prefs.svelte';
   import { actAt } from '../lib/waits';
   import { askTilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -20,6 +21,8 @@
   import Inspect from './Inspect.svelte';
   import ScoreSheet from './ScoreSheet.svelte';
   import SeatChip from './SeatChip.svelte';
+  import RailSeats from './RailSeats.svelte';
+  import SeatBoard from './SeatBoard.svelte';
   import Settings from './Settings.svelte';
   import TableTop from './TableTop.svelte';
 
@@ -35,6 +38,13 @@
   const tableName = (tableSeat: number) => (game.dealSeats[mine] === tableSeat ? t('you') : (view.players.find((p) => p.id === game.seats[tableSeat])?.name ?? '?'));
   /** The others in the order play goes from you (this deal's direction). */
   const others = $derived(Array.from({ length: n - 1 }, (_, i) => (home + (deal?.dir ?? 1) * (1 + i) + n * 4) % n));
+  // Where the other players' place cards are (Settings → Players; the user, 2026-10-15, as in
+  // Stichle): round the table, each on the rail where they sit (the default), or on a board above
+  // the cloth, everyone in playing order, you last.
+  const onBoard = $derived(prefs.seats === 'board');
+  let clothW = $state(360);
+  let clothH = $state(480);
+  const spots = $derived(seatSpots(others, mine, n, clothW, clothH));
   const myTurn = $derived(Boolean(deal && mine >= 0 && game.phase === 'deal' && deal.phase === 'play' && deal.turn === mine));
   const rules = $derived(deal?.rules ?? view.rules.maumau);
 
@@ -144,31 +154,38 @@
   const signSvg = (s: Suit) => `<svg viewBox="-1.15 -1.15 2.3 2.3" aria-hidden="true">${sign(s, 0, 0, 1, INKS.umber[s], TINT[s])}</svg>`;
 </script>
 
+<!-- A seat's place card, in the shape its place asks for: round the table, narrow, or on the board. -->
+{#snippet chipOf(seat: number, shape: '' | 'narrow' | 'board')}
+  {@const me = mine >= 0 && seat === mine}
+  <SeatChip
+    {room}
+    player={playerAt(seat)}
+    {me}
+    narrow={shape === 'narrow'}
+    board={shape === 'board'}
+    line={deal ? cardsText(me ? (deal.hand?.length ?? 0) : deal.counts[seat]) : ''}
+    tags={[...(deal?.said[seat] ? [{ text: 'Mau!', tone: 'gold' as const }] : []), ...(!me && deal?.skipped === seat ? [{ text: t('mauSkipTag') }] : [])]}
+    total={game.match.totals[game.dealSeats[seat]] ?? 0}
+    dealer={deal?.dealer === seat}
+    active={me ? myTurn : game.phase === 'deal' && deal?.turn === seat && deal?.phase === 'play'}
+    gone={!me && game.gone[game.dealSeats[seat]]}
+    endsAt={game.endsAt}
+  />
+{/snippet}
+
 <div class="table">
   <TableTop {game} title={t('game_maumau')} {sub} {dealNo} onsheet={() => (sheetOpen = true)} onsettings={() => (settingsOpen = true)} />
 
-  <div class="felt cloth">
-    <div class="seats" style:--count={others.length}>
-      {#each others as seat, i (seat)}
-        <div class="far" style:--lift="{Math.round((1 - Math.sin(((i + 1) / (others.length + 1)) * Math.PI)) * 14)}px">
-          <SeatChip
-            {room}
-            player={playerAt(seat)}
-            compact
-            line={deal ? cardsText(deal.counts[seat]) : ''}
-            tags={[...(deal?.said[seat] ? [{ text: 'Mau!', tone: 'gold' as const }] : []), ...(deal?.skipped === seat ? [{ text: t('mauSkipTag') }] : [])]}
-            total={game.match.totals[game.dealSeats[seat]] ?? 0}
-            dealer={deal?.dealer === seat}
-            active={game.phase === 'deal' && deal?.turn === seat && deal?.phase === 'play'}
-            gone={game.gone[game.dealSeats[seat]]}
-            endsAt={game.endsAt}
-          />
-          <span class="held" aria-hidden="true">
-            {#each { length: Math.min(deal?.counts[seat] ?? 0, 9) } as _, k (k)}<i style:--k={k - (Math.min(deal?.counts[seat] ?? 0, 9) - 1) / 2}></i>{/each}
-          </span>
-        </div>
-      {/each}
-    </div>
+  {#if onBoard}
+    <SeatBoard order={[...others, home]}>{#snippet chip(seat)}{@render chipOf(seat, 'board')}{/snippet}</SeatBoard>
+  {/if}
+
+  <div class="felt cloth" class:boarded={onBoard} bind:clientWidth={clothW} bind:clientHeight={clothH}>
+    {#if !onBoard}
+      <RailSeats {spots} held={(seat) => deal?.counts[seat] ?? 0} max={9}>
+        {#snippet chip(spot)}{@render chipOf(spot.seat, spot.narrow ? 'narrow' : '')}{/snippet}
+      </RailSeats>
+    {/if}
 
     <div class="middle">
       <button
@@ -195,7 +212,7 @@
     <p class="dir" aria-hidden="true">{deal?.dir === -1 ? '↺' : '↻'}</p>
   </div>
 
-  <div class="dock">
+  <div class="dock" class:bare={onBoard}>
     {#if error}
       <p class="toast" role="alert">{error}</p>
     {:else if status && !wishing}
@@ -228,9 +245,7 @@
     </div>
 
     <div class="mine">
-      {#if mine >= 0}
-        <SeatChip {room} player={playerAt(mine)} me line={deal ? cardsText(deal.hand?.length ?? 0) : ''} tags={deal?.said[mine] ? [{ text: 'Mau!', tone: 'gold' }] : []} total={game.match.totals[game.dealSeats[mine]] ?? 0} dealer={deal?.dealer === mine} active={myTurn} endsAt={game.endsAt} />
-      {/if}
+      {#if !onBoard && n > 0}{@render chipOf(home, '')}{/if}
     </div>
 
     <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
@@ -275,6 +290,8 @@
       padding-inline: max(16px, calc((100vw - 640px) / 2));
     }
   }
+  /* The cloth: from under the bar to your seat, which sits on its near edge. Round the table the
+     others' cards sit on its rail, the far ones over its top edge: the play's room starts under them. */
   .cloth {
     position: relative;
     flex: 1 1 auto;
@@ -282,42 +299,12 @@
     display: flex;
     flex-direction: column;
     margin: 22px 6px -30px;
-    padding: 18px 12px 34px;
+    padding: 50px 12px 34px;
   }
-  .seats {
-    display: grid;
-    grid-template-columns: repeat(var(--count), minmax(0, 1fr));
-    gap: 6px;
-    padding-bottom: 14px;
-  }
-  .far {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    translate: 0 var(--lift);
-  }
-  .far :global(.seat) {
-    width: 100%;
-    max-width: 120px;
-  }
-  .held {
-    position: relative;
-    height: 16px;
-    width: 40px;
-  }
-  .held i {
-    position: absolute;
-    left: calc(50% - 5px);
-    bottom: 0;
-    width: 10px;
-    height: 14px;
-    border-radius: 1.5px;
-    background: var(--back-ground);
-    box-shadow: 0 0 0 1px var(--back-line), inset 0 0 0 2px rgb(255 255 255 / 0.08);
-    transform-origin: 50% 120%;
-    rotate: calc(var(--k) * 9deg);
+  /* On the board the cloth holds nobody's card: only the play, and room for it. */
+  .cloth.boarded {
+    margin: 12px 6px 8px;
+    padding: 16px 12px;
   }
   .middle {
     flex: 1 1 auto;
@@ -500,6 +487,14 @@
   .mine {
     display: flex;
     justify-content: center;
+  }
+  /* On the board your card is up there too: the dock keeps your hand, the status a little higher. */
+  .bare .mine {
+    min-height: 8px;
+  }
+  .bare .status,
+  .bare .toast {
+    bottom: calc(100% + 20px);
   }
   .watching {
     margin: 10px 0 18px;

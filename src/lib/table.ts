@@ -101,3 +101,50 @@ export function rekey(cards: readonly string[], prev: readonly { id: string; key
     return { id, key };
   });
 }
+
+/**
+ * Where a seat sits on the rail, round the table (Stichle's, the user's pick B, 2026-10-15): its
+ * direction from the middle (angleOf, the same the trick's cards lean towards) carried out to the
+ * edge of a square, then stretched to the cloth, so the seats spread over the side rails and the far
+ * one alike instead of crowding the long edge. x and y from -1 to 1 across the cloth; `side` on a
+ * side rail (a narrow card there), else on the far rail or its corner.
+ */
+export function seatSpot(angle: number) {
+  const r = (angle * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  const k = 1 / Math.max(Math.abs(c), Math.abs(s));
+  const x = Math.round(c * k * 1000) / 1000 || 0;
+  const y = Math.round(s * k * 1000) / 1000 || 0;
+  return { x, y, side: Math.abs(x) === 1 && y > -1 };
+}
+
+/** A place card round the table: its seat, where its centre is over the cloth (px), its width. */
+export type Spot = { seat: number; side: boolean; narrow: boolean; x: number; y: number; w: number };
+
+/**
+ * Round the table: each other seat on the rail its direction from the middle meets (seatSpot). The
+ * far rail's cards share its width evenly, left to right (narrow cards with their names on two lines
+ * when there's little room); a side rail's card is narrow, a little below the corners. A card may
+ * reach `reach` past the cloth's edge, never off the screen. Positions in px over a cloth `w` × `h`.
+ */
+export function seatSpots(others: readonly number[], mine: number, n: number, w: number, h: number, wide = 150, narrowW = 112, reach = 12): Spot[] {
+  const raw = others.map((seat) => ({ seat, ...seatSpot(angleOf(seat, mine, n)) }));
+  // Left to right, whatever order play goes round in (Mau-Mau's can turn).
+  const far = raw.filter((p) => !p.side).sort((a, b) => a.x - b.x);
+  const k = far.length;
+  const farW = Math.min(wide, Math.floor((w + 2 * reach - (k - 1) * 6) / Math.max(1, k)));
+  const lo = farW / 2 - reach;
+  const hi = w - farW / 2 + reach;
+  return raw.map((p) => {
+    if (p.side) {
+      const x = p.x < 0 ? narrowW / 2 - reach : w - narrowW / 2 + reach;
+      const y = Math.min(Math.max(h / 2 + (p.y * h) / 2, h * 0.28), h * 0.7);
+      return { seat: p.seat, side: true, narrow: true, x: Math.round(x), y: Math.round(y), w: narrowW };
+    }
+    const i = far.indexOf(p);
+    const x = k === 1 ? w / 2 : lo + ((hi - lo) * i) / (k - 1);
+    // Over the far rail, a little in from it: clear of the bar above.
+    return { seat: p.seat, side: false, narrow: farW < 130, x: Math.round(x), y: 6, w: farW };
+  });
+}

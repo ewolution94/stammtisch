@@ -3,6 +3,11 @@
   game (tricks taken, cards held), small tags (Re, Kontra, keine 90; the declarer; "Mau!"), their
   total, and whose move it is (a gold edge, with the clock when there is one). The dealer carries a
   small deck. From Stichle's SeatChip.svelte, without Wizard's bids.
+
+  Its shapes (the user's picks, 2026-10-15, as in Stichle): on its side, everyone's the same round the
+  table and yours in the dock; `narrow` on a side rail or with three across (the name on two lines
+  rather than cut); `board`, a small card on the board above the cloth (the seal and the name above,
+  the total large under them).
 -->
 <script lang="ts">
   import type { Player } from '../lib/api';
@@ -15,7 +20,8 @@
     room,
     player,
     me = false,
-    compact = false,
+    narrow = false,
+    board = false,
     line = '',
     tags = [],
     total,
@@ -27,7 +33,10 @@
     room: Room;
     player: Player | undefined;
     me?: boolean;
-    compact?: boolean;
+    /** On a side rail, or three across the far one: a narrow card, the name on up to two lines. */
+    narrow?: boolean;
+    /** A small card on the board above the cloth. */
+    board?: boolean;
     line?: string;
     tags?: { text: string; tone?: 're' | 'kontra' | 'gold' | 'plain' }[];
     total: number;
@@ -38,9 +47,9 @@
   } = $props();
 </script>
 
-<div class="seat" class:active class:me class:compact class:gone={gone || (player && !player.online)}>
+<div class="seat" class:active class:me class:narrow class:onboard={board} class:gone={gone || (player && !player.online)}>
   <div class="face">
-    {#if player}<Avatar avatar={player.avatar} size={compact ? 30 : 36} />{/if}
+    {#if player}<Avatar avatar={player.avatar} size={board ? 24 : narrow ? 30 : 36} />{/if}
     {#if dealer}<span class="dealer" title={t('dealer')} aria-label={t('dealer')}></span>{/if}
   </div>
   <div class="info">
@@ -94,19 +103,6 @@
     opacity: 0.35;
     pointer-events: none;
   }
-  .seat.compact {
-    flex-direction: column;
-    gap: 2px;
-    margin-top: 16px;
-    padding: 22px 6px 7px;
-    text-align: center;
-  }
-  .compact .face {
-    position: absolute;
-    top: -16px;
-    left: 50%;
-    translate: -50% 0;
-  }
   .seat.active {
     translate: 0 -2px;
     box-shadow:
@@ -148,10 +144,6 @@
     gap: 2px;
     min-width: 0;
   }
-  .compact .info {
-    align-items: center;
-    width: 100%;
-  }
   .name {
     overflow: hidden;
     max-width: 100%;
@@ -184,7 +176,7 @@
     gap: 3px;
     white-space: nowrap;
   }
-  .seat:not(.compact) .tags {
+  .seat:not(.onboard) .tags {
     left: auto;
     right: 8px;
     translate: none;
@@ -226,5 +218,63 @@
     z-index: 2;
     top: -10px;
     right: -6px;
+  }
+  /* Narrow: the name on two lines rather than cut short. */
+  .seat.narrow {
+    gap: 7px;
+    padding: 7px 10px 7px 7px;
+  }
+  .narrow .name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  /* On the board: the seal and the name in a row, the total large under them and what matters
+     beside it. The class isn't .board: a global one of that name would reach it (Stichle's lesson). */
+  .seat.onboard {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'face name'
+      'line line';
+    align-items: center;
+    gap: 6px 7px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 10px 10px 8px;
+    border-radius: 10px;
+  }
+  .onboard .face {
+    grid-area: face;
+  }
+  .onboard .info {
+    display: contents;
+  }
+  .onboard .name {
+    grid-area: name;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .onboard .dealer {
+    right: -4px;
+    bottom: -3px;
+    width: 9px;
+    height: 12px;
+  }
+  .onboard .line {
+    grid-area: line;
+    justify-content: space-between;
+    height: 22px;
+  }
+  .onboard .total {
+    order: -1;
+    font-size: 22px;
   }
 </style>

@@ -18,6 +18,10 @@ Herz, Schellen; the Unter, Ober and König as paper cuts, the numbers in letterp
   temperament comes with its name (cautious, steady, bold) and leans what it dares: a solo, an
   announcement, a Skat bid. The rank shows in the lobby and in the bot's sheet, not on the phone's
   place cards (the user, 2026-10-15).
+- **Where the others sit** (Settings → Players, kept on the device; the user's picks B and C,
+  2026-10-15, as in Stichle): round the table, each place card on the rail where its player sits
+  (the default; `src/lib/table.ts` → `seatSpots`), or on a board above the cloth, everyone in playing
+  order, you last.
 - **Cards you handle,** Folio's card kit (from Stichle): your hand is a fan; drag a card up or flick
   it, or tap it twice; a card you may not play shakes and drops back; hold one to look at it big (it
   tilts with the phone). Picking several cards (the Skat to put back, poverty's three) is tapping
