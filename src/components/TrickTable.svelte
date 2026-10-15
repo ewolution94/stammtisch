@@ -7,7 +7,8 @@
 -->
 <script lang="ts">
   import { ApiError, type DokoDeal, type SkatDeal, type View } from '../lib/api';
-  import { callName, contractName, dealNumber, skatGame, tricksText } from '../lib/games';
+  import { callName, contractName, dealNumber, skatGame, suitName, tricksText } from '../lib/games';
+  import type { Suit } from '../lib/deck';
   import { errorText, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
   import { angleOf, idOfKey, keyed, seatSpots, slotOffset, trickCardWidth, trickPhase, twist, TRICK_REVEAL } from '../lib/table';
@@ -27,6 +28,8 @@
   import SkatPanel from './SkatPanel.svelte';
   import TableTop from './TableTop.svelte';
   import Trick from './Trick.svelte';
+  import TrickOverview from './TrickOverview.svelte';
+  import { leading } from '../lib/trick-rules';
 
   let { room, view, onleave }: { room: Room; view: View; onleave: (from?: Event) => Promise<void> } = $props();
 
@@ -93,6 +96,34 @@
   }
 
   let trickEl: HTMLDivElement | undefined = $state();
+
+  // The trick in the order it was played, on a tap on the stack (TrickOverview.svelte, Stichle's; the
+  // user's go, 2026-10-15): the one in play, or the finished one while it still lies on the table.
+  const pile = $derived(
+    deal?.trick.cards.length
+      ? { cards: deal.trick.cards, decided: null as number | null }
+      : holding && game.lastTrick
+        ? { cards: game.lastTrick.cards, decided: game.lastTrick.winner as number | null }
+        : null,
+  );
+  let overview = $state(false);
+  $effect(() => {
+    if (!pile) overview = false;
+  });
+  const pileView = $derived.by(() => {
+    if (!pile || !deal) return null;
+    const { best, led } = leading(deal as DokoDeal | SkatDeal, pile.cards);
+    const at = pile.decided !== null ? pile.cards.findIndex((p) => p.seat === pile.decided) : best;
+    const ledName = led === null ? '' : led === 'trump' ? t('trumpWord') : suitName(led as Suit);
+    const gameName = doko?.contract ? contractName(doko.contract) : skat?.contract ? skatGame(skat.contract) : '';
+    return { cards: pile.cards, best: at, decided: pile.decided !== null, led: ledName, game: gameName };
+  });
+  function tapPile(e: Event) {
+    if (e instanceof KeyboardEvent && e.key !== 'Enter' && e.key !== ' ') return;
+    if (!pile) return;
+    e.preventDefault();
+    overview = !overview;
+  }
   let trickW = $state(320);
   let trickH = $state(260);
 
@@ -273,7 +304,9 @@
       </div>
     {/if}
 
-    <div class="middle" bind:this={trickEl}>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="middle" class:tappable={pile} bind:this={trickEl} role={pile ? 'button' : undefined} tabindex={pile ? 0 : undefined} aria-label={pile ? t('trickOverview') : undefined} onclick={tapPile} onkeydown={tapPile}>
+      {#if overview && pileView}<TrickOverview cards={pileView.cards} best={pileView.best} decided={pileView.decided} led={pileView.led} game={pileView.game} {nameAt} onclose={() => (overview = false)} />{/if}
       {#if deal}
         <Trick {room} trick={deal.trick} last={game.lastTrick} holdUntil={game.holdUntil} {mine} {n} bind:width={trickW} bind:height={trickH} />
       {/if}
@@ -374,6 +407,15 @@
     position: relative;
     flex: 1 1 auto;
     min-height: 0;
+  }
+  .middle.tappable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .middle:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: -6px;
+    border-radius: 14px;
   }
   .dock {
     position: relative;
