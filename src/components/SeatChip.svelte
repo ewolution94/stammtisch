@@ -14,6 +14,7 @@
   import { score, t } from '../lib/i18n.svelte';
   import type { Room } from '../lib/room.svelte';
   import Avatar from './Avatar.svelte';
+  import BotRank from './BotRank.svelte';
   import Clock from './Clock.svelte';
 
   let {
@@ -29,6 +30,7 @@
     active = false,
     gone = false,
     endsAt = null,
+    rank = false,
   }: {
     room: Room;
     player: Player | undefined;
@@ -44,6 +46,9 @@
     active?: boolean;
     gone?: boolean;
     endsAt?: number | null;
+    /** A bot's rank beside its name: on the desktop table only, never on the phone (the user,
+        2026-10-15, as in Stichle). */
+    rank?: boolean;
   } = $props();
 </script>
 
@@ -53,7 +58,10 @@
     {#if dealer}<span class="dealer" title={t('dealer')} aria-label={t('dealer')}></span>{/if}
   </div>
   <div class="info">
-    <span class="name">{me ? t('you') : (player?.name ?? '?')}</span>
+    <span class="who">
+      <span class="name">{me ? t('you') : (player?.name ?? '?')}</span>
+      {#if player?.bot && rank}<BotRank level={player.level} size={5} />{/if}
+    </span>
     <span class="line">
       {#if line}<span class="what">{line}</span>{/if}
       <span class="total">{score(total)}</span>
@@ -143,6 +151,13 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
+  }
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
   }
   .name {
     overflow: hidden;
@@ -253,8 +268,10 @@
   .onboard .info {
     display: contents;
   }
-  .onboard .name {
+  .onboard .who {
     grid-area: name;
+  }
+  .onboard .name {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;

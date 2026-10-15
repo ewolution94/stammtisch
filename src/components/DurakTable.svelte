@@ -165,6 +165,7 @@
     active={me ? myTurn : game.phase === 'deal' && deal?.turn === seat && deal?.phase === 'play'}
     gone={!me && game.gone[game.dealSeats[seat]]}
     endsAt={game.endsAt}
+    rank={screen.desk}
   />
 {/snippet}
 

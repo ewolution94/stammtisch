@@ -1,8 +1,8 @@
 <!--
   A bot's rank as three small lozenges in the cards' gold, filled to its rank (the user, 2026-10-14:
   Apprentice, Journeyman, Master, as in a guild; Stichle's BotRank.svelte). In the lobby beside its
-  name and in its sheet beside each rank. Not on the phone's place cards (the user's decision for
-  Stichle, 2026-10-15: ranks at the table only on a desktop table, which Stammtisch doesn't have yet).
+  name, in its sheet beside each rank, and on the desktop table's place cards. Not on the phone's
+  (the user's decision for Stichle, 2026-10-15: ranks at the table only on a desktop table).
 -->
 <script lang="ts">
   import type { Level } from '../lib/api';

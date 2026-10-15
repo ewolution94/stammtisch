@@ -285,6 +285,7 @@
     active={me ? myTurn : game.phase === 'deal' && game.waiting.includes(seat)}
     gone={!me && game.gone[game.dealSeats[seat]]}
     endsAt={game.endsAt}
+    rank={screen.desk}
   />
 {/snippet}
 
