@@ -40,7 +40,8 @@
       at = 0;
     }
   });
-  const value = $derived(above[Math.min(at, above.length - 1)] ?? 18);
+  // Nothing above the bid (264 was said): only passing is left.
+  const value = $derived(above.length ? above[Math.min(at, above.length - 1)] : null);
 
   // The game to declare, and its announcements (Hand games only; Ouvert for Null either way).
   let game: string = $state('c');
@@ -84,6 +85,7 @@
       </div>
     {:else}
       <span class="label">{deal.bid ? t('skatSayOver', { bid: deal.bid }) : t('skatSay')}</span>
+      {#if value !== null}
       <div class="dial">
         <button class="step" type="button" aria-label={t('less')} disabled={at <= 0} onclick={() => (at = Math.max(0, at - 1))}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" /></svg>
@@ -93,8 +95,9 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" /></svg>
         </button>
       </div>
+      {/if}
       <div class="pair">
-        <button class="btn primary" type="button" onclick={send({ type: 'bid', value })}>{t('skatSayBtn', { n: value })}</button>
+        {#if value !== null}<button class="btn primary" type="button" onclick={send({ type: 'bid', value })}>{t('skatSayBtn', { n: value })}</button>{/if}
         <button class="btn" type="button" onclick={send({ type: 'pass' })}>{t('skatPass')}</button>
       </div>
     {/if}
