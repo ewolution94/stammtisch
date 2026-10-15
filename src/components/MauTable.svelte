@@ -13,6 +13,7 @@
   import type { Room } from '../lib/room.svelte';
   import { seatSpots, stackPlace } from '../lib/table';
   import { prefs } from '../lib/prefs.svelte';
+  import { screen, tableScale } from '../lib/desk.svelte';
   import { actAt } from '../lib/waits';
   import { askTilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -23,6 +24,7 @@
   import SeatChip from './SeatChip.svelte';
   import RailSeats from './RailSeats.svelte';
   import SeatBoard from './SeatBoard.svelte';
+  import DeskTable from './DeskTable.svelte';
   import Settings from './Settings.svelte';
   import TableTop from './TableTop.svelte';
 
@@ -45,6 +47,8 @@
   let clothW = $state(360);
   let clothH = $state(480);
   const spots = $derived(seatSpots(others, mine, n, clothW, clothH));
+  // The desktop table (DeskTable.svelte, from 1100 × 740 up) and its size.
+  const scale = $derived(tableScale());
   const myTurn = $derived(Boolean(deal && mine >= 0 && game.phase === 'deal' && deal.phase === 'play' && deal.turn === mine));
   const rules = $derived(deal?.rules ?? view.rules.maumau);
 
@@ -173,8 +177,115 @@
   />
 {/snippet}
 
-<div class="table">
+{#snippet bar()}
   <TableTop {game} title={t('game_maumau')} {sub} {dealNo} onsheet={() => (sheetOpen = true)} onsettings={() => (settingsOpen = true)} />
+{/snippet}
+
+{#snippet middleOf()}
+  <div class="middle" class:big={screen.desk}>
+    <button
+      class="stock"
+      type="button"
+      disabled={!myTurn || Boolean(deal?.drawn)}
+      onclick={(e) => void move({ type: 'draw' }, e).catch(() => {})}
+      aria-label={t('mauDrawBtn', { n: deal?.stock ?? 0 })}
+    >
+      {#each { length: Math.min(4, Math.max(1, Math.ceil((deal?.stock ?? 0) / 6))) } as _, k (k)}
+        <span class="back" style:translate="{k * -1.5}px {k * -1.5}px"><Card back /></span>
+      {/each}
+      <span class="count">{deal?.stock ?? 0}</span>
+    </button>
+    <div class="pile" bind:this={pileEl} bind:clientWidth={pileWidth}>
+      {#each deal?.pile ?? [] as card, i (`${(deal?.piled ?? 0) - (deal?.pile.length ?? 0) + i}`)}
+        {@const at = laidAt(card, (deal?.piled ?? 0) - (deal?.pile.length ?? 0) + i)}
+        <span class="laid" style:translate="{at.dx.toFixed(1)}px {at.dy.toFixed(1)}px" style:rotate="{at.r.toFixed(1)}deg" style:z-index={i}><Card id={card} /></span>
+      {/each}
+      {#if deal?.wish}<span class="wish" aria-label={t('mauWishTop', { suit: suitName(deal.wish) })}>{@html signSvg(deal.wish)}</span>{/if}
+      {#if deal?.penalty}<span class="penalty">+{deal.penalty}</span>{/if}
+    </div>
+  </div>
+{/snippet}
+
+{#snippet notice()}
+  {#if error}
+    <p class="toast" role="alert">{error}</p>
+  {:else if status && !wishing}
+    <p class="status" class:mine={myTurn} aria-live="polite">{status}</p>
+  {/if}
+{/snippet}
+
+{#snippet wishPanel()}
+  {#if wishing}
+    <div class="panel sheet">
+      <span class="label">{t('mauWishAsk')}</span>
+      <div class="suits">
+        {#each SUITS as s (s)}
+          <button class="btn suitbtn" type="button" onclick={() => { const card = wishing!; wishing = null; void play(card, s).catch(() => {}); }}>
+            <span class="mark">{@html signSvg(s)}</span>{suitName(s)}
+          </button>
+        {/each}
+      </div>
+      <button class="btn quiet small" type="button" onclick={() => (wishing = null)}>{t('back')}</button>
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet actions()}
+  <div class="actions">
+    {#if myTurn && deal?.drawn}
+      <button class="btn paper small" type="button" onclick={(e) => void move({ type: 'pass' }, e).catch(() => {})}>{t('mauKeep')}</button>
+    {:else if myTurn && deal}
+      <button class="btn paper small" type="button" onclick={(e) => void move({ type: 'draw' }, e).catch(() => {})}>{deal.penalty ? t('mauDrawN', { n: deal.penalty }) : t('mauDraw')}</button>
+    {/if}
+    {#if mauDue}
+      <button class="btn mau" class:on={mau} type="button" aria-pressed={mau} onclick={() => (mau = !mau)}>Mau!</button>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet handOf(flat: boolean, hotkeys: boolean, size: number)}
+  <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
+  {#if mine >= 0}
+    <Hand
+      cards={deal?.hand ?? []}
+      legal={deal?.playable ?? []}
+      canPlay={myTurn}
+      onplay={(card) => play(card)}
+      {target}
+      oninspect={inspect}
+      onrefuse={refused}
+      intercept={(card) => (wishes(card) ? ((wishing = card), true) : false)}
+      marked={deal?.drawn ?? null}
+      {flat}
+      {hotkeys}
+      scale={size}
+    />
+  {:else}
+    <p class="watching">{t('watchingGame')}</p>
+  {/if}
+{/snippet}
+
+{#if screen.desk}
+  <DeskTable {n} {mine} {home} {others} {onBoard} {scale} held={(seat) => deal?.counts[seat] ?? 0} max={9} top={bar}>
+    {#snippet chip(seat, shape)}{@render chipOf(seat, shape === 'board' ? 'board' : '')}{/snippet}
+    <!-- The way play goes, beside the stock rather than loose on the cloth. -->
+    {#snippet left()}
+      <div class="desk-dir" aria-hidden="true">
+        <span class="mark">{deal?.dir === -1 ? '↺' : '↻'}</span>
+        <span class="desk-tag">{t('mauDirTag')}</span>
+      </div>
+    {/snippet}
+    {#snippet middle()}{@render middleOf()}{/snippet}
+    {#snippet float()}
+      {@render notice()}
+      {@render wishPanel()}
+    {/snippet}
+    {#snippet beside()}{@render actions()}{/snippet}
+    {#snippet hand()}{@render handOf(prefs.hand === 'flat', true, scale)}{/snippet}
+  </DeskTable>
+{:else}
+<div class="table">
+  {@render bar()}
 
   {#if onBoard}
     <SeatBoard order={[...others, home]}>{#snippet chip(seat)}{@render chipOf(seat, 'board')}{/snippet}</SeatBoard>
@@ -187,89 +298,29 @@
       </RailSeats>
     {/if}
 
-    <div class="middle">
-      <button
-        class="stock"
-        type="button"
-        disabled={!myTurn || Boolean(deal?.drawn)}
-        onclick={(e) => void move({ type: 'draw' }, e).catch(() => {})}
-        aria-label={t('mauDrawBtn', { n: deal?.stock ?? 0 })}
-      >
-        {#each { length: Math.min(4, Math.max(1, Math.ceil((deal?.stock ?? 0) / 6))) } as _, k (k)}
-          <span class="back" style:translate="{k * -1.5}px {k * -1.5}px"><Card back /></span>
-        {/each}
-        <span class="count">{deal?.stock ?? 0}</span>
-      </button>
-      <div class="pile" bind:this={pileEl} bind:clientWidth={pileWidth}>
-        {#each deal?.pile ?? [] as card, i (`${(deal?.piled ?? 0) - (deal?.pile.length ?? 0) + i}`)}
-          {@const at = laidAt(card, (deal?.piled ?? 0) - (deal?.pile.length ?? 0) + i)}
-          <span class="laid" style:translate="{at.dx.toFixed(1)}px {at.dy.toFixed(1)}px" style:rotate="{at.r.toFixed(1)}deg" style:z-index={i}><Card id={card} /></span>
-        {/each}
-        {#if deal?.wish}<span class="wish" aria-label={t('mauWishTop', { suit: suitName(deal.wish) })}>{@html signSvg(deal.wish)}</span>{/if}
-        {#if deal?.penalty}<span class="penalty">+{deal.penalty}</span>{/if}
-      </div>
-    </div>
+    {@render middleOf()}
     <p class="dir" aria-hidden="true">{deal?.dir === -1 ? '↺' : '↻'}</p>
   </div>
 
   <div class="dock" class:bare={onBoard}>
-    {#if error}
-      <p class="toast" role="alert">{error}</p>
-    {:else if status && !wishing}
-      <p class="status" class:mine={myTurn} aria-live="polite">{status}</p>
-    {/if}
+    {@render notice()}
 
-    {#if wishing}
-      <div class="panel sheet">
-        <span class="label">{t('mauWishAsk')}</span>
-        <div class="suits">
-          {#each SUITS as s (s)}
-            <button class="btn suitbtn" type="button" onclick={() => { const card = wishing!; wishing = null; void play(card, s).catch(() => {}); }}>
-              <span class="mark">{@html signSvg(s)}</span>{suitName(s)}
-            </button>
-          {/each}
-        </div>
-        <button class="btn quiet small" type="button" onclick={() => (wishing = null)}>{t('back')}</button>
-      </div>
-    {/if}
+    {@render wishPanel()}
 
-    <div class="actions">
-      {#if myTurn && deal?.drawn}
-        <button class="btn paper small" type="button" onclick={(e) => void move({ type: 'pass' }, e).catch(() => {})}>{t('mauKeep')}</button>
-      {:else if myTurn && deal}
-        <button class="btn paper small" type="button" onclick={(e) => void move({ type: 'draw' }, e).catch(() => {})}>{deal.penalty ? t('mauDrawN', { n: deal.penalty }) : t('mauDraw')}</button>
-      {/if}
-      {#if mauDue}
-        <button class="btn mau" class:on={mau} type="button" aria-pressed={mau} onclick={() => (mau = !mau)}>Mau!</button>
-      {/if}
-    </div>
+    {@render actions()}
 
     <div class="mine">
       {#if !onBoard && n > 0}{@render chipOf(home, '')}{/if}
     </div>
 
-    <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
-    {#if mine >= 0}
-      <Hand
-        cards={deal?.hand ?? []}
-        legal={deal?.playable ?? []}
-        canPlay={myTurn}
-        onplay={(card) => play(card)}
-        {target}
-        oninspect={inspect}
-        onrefuse={refused}
-        intercept={(card) => (wishes(card) ? ((wishing = card), true) : false)}
-        marked={deal?.drawn ?? null}
-      />
-    {:else}
-      <p class="watching">{t('watchingGame')}</p>
-    {/if}
+    {@render handOf(false, false, 1)}
   </div>
-
-  {#if game.phase === 'scored'}
-    <DealEnd {room} {view} />
-  {/if}
 </div>
+{/if}
+
+{#if game.phase === 'scored'}
+  <DealEnd {room} {view} />
+{/if}
 
 <Inspect card={inspecting} onclose={() => (inspecting = null)} />
 <ScoreSheet open={sheetOpen} {view} onclose={() => (sheetOpen = false)} />
@@ -319,6 +370,20 @@
     position: relative;
     width: clamp(72px, 24vw, 108px);
     aspect-ratio: 5 / 7;
+  }
+  /* On the desktop table: grown with the table's size (no vw there). */
+  .middle.big {
+    gap: calc(56px * var(--scale, 1));
+  }
+  .middle.big .stock,
+  .middle.big .pile {
+    width: calc(132px * var(--scale, 1));
+  }
+  :global(.desk-float) .panel {
+    left: 50%;
+    right: auto;
+    width: min(440px, 100%);
+    translate: -50% 0;
   }
   .stock {
     padding: 0;
@@ -393,6 +458,24 @@
     margin: 0;
     font-size: 22px;
     color: var(--on-cloth-2);
+  }
+  .desk-dir {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .desk-dir .mark {
+    font-size: 40px;
+    line-height: 1;
+    color: var(--on-cloth-2);
+  }
+  .desk-tag {
+    font: 650 11px/1.3 var(--ewo-sans);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--on-cloth-2);
+    text-align: center;
   }
   .dock {
     position: relative;

@@ -13,6 +13,7 @@
   import type { Room } from '../lib/room.svelte';
   import { angleOf, idOfKey, keyed, seatSpots, slotOffset, trickCardWidth, trickPhase, twist, TRICK_REVEAL } from '../lib/table';
   import { prefs } from '../lib/prefs.svelte';
+  import { screen, tableScale } from '../lib/desk.svelte';
   import { actAt } from '../lib/waits';
   import { askTilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -24,6 +25,7 @@
   import SeatChip from './SeatChip.svelte';
   import RailSeats from './RailSeats.svelte';
   import SeatBoard from './SeatBoard.svelte';
+  import DeskTable from './DeskTable.svelte';
   import Settings from './Settings.svelte';
   import SkatPanel from './SkatPanel.svelte';
   import TableTop from './TableTop.svelte';
@@ -124,6 +126,11 @@
     e.preventDefault();
     overview = !overview;
   }
+  // The desktop table (DeskTable.svelte, from 1100 × 740 up) and its size; the trick's cards grow with it.
+  const scale = $derived(tableScale());
+  const cap = $derived(screen.desk ? 150 * scale : undefined);
+  /** Who took the trick before, and its cards: face down by the desktop table's edge, to peek at. */
+  const lastTaker = $derived(game.lastTrick?.winner ?? null);
   let trickW = $state(320);
   let trickH = $state(260);
 
@@ -131,7 +138,7 @@
   function target(card: string) {
     if (!trickEl || mine < 0) return null;
     const r = trickEl.getBoundingClientRect();
-    const width = trickCardWidth(r.width, r.height);
+    const width = trickCardWidth(r.width, r.height, cap);
     const { dx, dy } = slotOffset(angleOf(mine, mine, n), width);
     return { x: r.left + r.width / 2 + dx, y: r.top + r.height / 2 + dy, rot: Number(twist(card, mine)), width };
   }
@@ -281,8 +288,110 @@
   />
 {/snippet}
 
-<div class="table">
+{#snippet notice()}
+  {#if error}
+    <p class="toast" role="alert">{error}</p>
+  {:else if status && !panelOpen}
+    <p class="status" class:mine={myTurn} aria-live="polite">{status}</p>
+  {/if}
+{/snippet}
+
+{#snippet panels()}
+  {#if deal && deciding && doko}
+    <DokoPanel deal={doko} {mine} {myTurn} picked={pickedIds} {decide} name={nameAt} />
+  {:else if deal && deciding && skat}
+    <SkatPanel deal={skat} {mine} {myTurn} picked={pickedIds} {decide} name={nameAt} />
+  {/if}
+{/snippet}
+
+{#snippet handOf(flat: boolean, hotkeys: boolean, size: number)}
+  <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
+  {#if mine >= 0}
+    <Hand
+      cards={deal?.hand ?? []}
+      legal={deal?.legal ?? []}
+      {canPlay}
+      onplay={(card) => move({ type: 'play', card })}
+      {target}
+      oninspect={inspect}
+      onrefuse={refused}
+      select={picking ? { picked, ontoggle: toggle } : null}
+      {flat}
+      {hotkeys}
+      scale={size}
+    />
+  {:else}
+    <p class="watching">{mine < 0 && game.dealSeats.length ? t('sittingOut') : t('watchingGame')}</p>
+  {/if}
+{/snippet}
+
+{#snippet openHand()}
+  {#if skat?.open && skat.declarer !== null && skat.declarer !== mine}
+    <div class="open" aria-label={t('skatOpen', { name: nameAt(skat.declarer) })}>
+      {#each keyed(skat.open) as c (c.key)}<span class="mini"><Card id={c.id} /></span>{/each}
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet middle()}
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <div class="middle" class:tappable={pile} bind:this={trickEl} role={pile ? 'button' : undefined} tabindex={pile ? 0 : undefined} aria-label={pile ? t('trickOverview') : undefined} onclick={tapPile} onkeydown={tapPile}>
+    {#if overview && pileView}<TrickOverview cards={pileView.cards} best={pileView.best} decided={pileView.decided} led={pileView.led} game={pileView.game} {nameAt} onclose={() => (overview = false)} />{/if}
+    {#if deal}
+      <Trick {room} trick={deal.trick} last={game.lastTrick} holdUntil={game.holdUntil} {mine} {n} {cap} bind:width={trickW} bind:height={trickH} />
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet top()}
   <TableTop {game} title={t(`game_${game.id}`)} sub={contract} extra={calls} {dealNo} onsheet={() => (sheetOpen = true)} onsettings={() => (settingsOpen = true)} />
+{/snippet}
+
+{#if screen.desk}
+  <DeskTable {n} {mine} {home} {others} {onBoard} {scale} held={(seat) => deal?.counts[seat] ?? 0} {top} {middle}>
+    {#snippet chip(seat, shape)}{@render chipOf(seat, shape === 'board' ? 'board' : '')}{/snippet}
+    {#snippet left()}
+      <!-- The Skat lies on the table, face down, the whole deal (Skat only); who sits this deal out. -->
+      <div class="desk-side">
+        {#if skat && deal && skat.phase !== 'done'}
+          <span class="desk-pile small" aria-label={t('skatLies')}>
+            <span class="c b1"><Card back /></span>
+            <span class="c b2"><Card back /></span>
+          </span>
+          <span class="desk-tag">Skat</span>
+        {/if}
+        {#if sittingOut.length}
+          <span class="desk-tag">{t('sitsOut', { names: sittingOut.map((s) => view.players.find((p) => p.id === game.seats[s])?.name ?? '?').join(', ') })}</span>
+        {/if}
+      </div>
+    {/snippet}
+    {#snippet right()}
+      <!-- The trick before, face down where it was swept; hover or focus to look at it. -->
+      {#if game.lastTrick && lastTaker !== null}
+        <button class="desk-last" type="button" aria-label={t('lastTrickOf', { name: nameAt(lastTaker) })}>
+          <span class="desk-pile small">
+            <span class="c b1"><Card back /></span>
+            <span class="c b2"><Card back /></span>
+          </span>
+          <span class="desk-tag">{t('lastTrick')} · <b>{nameAt(lastTaker)}</b></span>
+          <span class="desk-peek" aria-hidden="true">
+            {#each game.lastTrick.cards as played (`${played.seat}-${played.card}`)}<span class="c" class:taker={played.seat === lastTaker}><Card id={played.card} /></span>{/each}
+          </span>
+        </button>
+      {/if}
+    {/snippet}
+    {#snippet float()}
+      {@render notice()}
+      {@render panels()}
+    {/snippet}
+    {#snippet hand()}
+      {@render openHand()}
+      {@render handOf(prefs.hand === 'flat', true, scale)}
+    {/snippet}
+  </DeskTable>
+{:else}
+<div class="table">
+  {@render top()}
 
   {#if onBoard}
     <SeatBoard order={[...others, home]}>{#snippet chip(seat)}{@render chipOf(seat, 'board')}{/snippet}</SeatBoard>
@@ -298,59 +407,28 @@
       </RailSeats>
     {/if}
 
-    {#if skat?.open && skat.declarer !== null && skat.declarer !== mine}
-      <div class="open" aria-label={t('skatOpen', { name: nameAt(skat.declarer) })}>
-        {#each keyed(skat.open) as c (c.key)}<span class="mini"><Card id={c.id} /></span>{/each}
-      </div>
-    {/if}
+    {@render openHand()}
 
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-    <div class="middle" class:tappable={pile} bind:this={trickEl} role={pile ? 'button' : undefined} tabindex={pile ? 0 : undefined} aria-label={pile ? t('trickOverview') : undefined} onclick={tapPile} onkeydown={tapPile}>
-      {#if overview && pileView}<TrickOverview cards={pileView.cards} best={pileView.best} decided={pileView.decided} led={pileView.led} game={pileView.game} {nameAt} onclose={() => (overview = false)} />{/if}
-      {#if deal}
-        <Trick {room} trick={deal.trick} last={game.lastTrick} holdUntil={game.holdUntil} {mine} {n} bind:width={trickW} bind:height={trickH} />
-      {/if}
-    </div>
+    {@render middle()}
   </div>
 
   <div class="dock" class:bare={onBoard}>
-    {#if error}
-      <p class="toast" role="alert">{error}</p>
-    {:else if status && !panelOpen}
-      <p class="status" class:mine={myTurn} aria-live="polite">{status}</p>
-    {/if}
+    {@render notice()}
 
-    {#if deal && deciding && doko}
-      <DokoPanel deal={doko} {mine} {myTurn} picked={pickedIds} {decide} name={nameAt} />
-    {:else if deal && deciding && skat}
-      <SkatPanel deal={skat} {mine} {myTurn} picked={pickedIds} {decide} name={nameAt} />
-    {/if}
+    {@render panels()}
 
     <div class="mine">
       {#if !onBoard && n > 0}{@render chipOf(home, '')}{/if}
     </div>
 
-    <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
-    {#if mine >= 0}
-      <Hand
-        cards={deal?.hand ?? []}
-        legal={deal?.legal ?? []}
-        {canPlay}
-        onplay={(card) => move({ type: 'play', card })}
-        {target}
-        oninspect={inspect}
-        onrefuse={refused}
-        select={picking ? { picked, ontoggle: toggle } : null}
-      />
-    {:else}
-      <p class="watching">{mine < 0 && game.dealSeats.length ? t('sittingOut') : t('watchingGame')}</p>
-    {/if}
+    {@render handOf(false, false, 1)}
   </div>
-
-  {#if game.phase === 'scored'}
-    <DealEnd {room} {view} />
-  {/if}
 </div>
+{/if}
+
+{#if game.phase === 'scored'}
+  <DealEnd {room} {view} />
+{/if}
 
 <Inspect card={inspecting} onclose={() => (inspecting = null)} />
 <ScoreSheet open={sheetOpen} {view} onclose={() => (sheetOpen = false)} />
@@ -407,6 +485,88 @@
     position: relative;
     flex: 1 1 auto;
     min-height: 0;
+  }
+  /* The desktop table's sides: the Skat, who sits out, the last trick (DeskTable zooms them). */
+  .desk-side,
+  .desk-last {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+  }
+  .desk-last {
+    position: relative;
+  }
+  .desk-pile {
+    position: relative;
+    display: block;
+    width: 124px;
+    height: 136px;
+  }
+  .desk-pile .c {
+    position: absolute;
+    display: block;
+    width: 88px;
+    filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.45));
+  }
+  .desk-pile .b1 {
+    left: 16px;
+    top: 6px;
+    rotate: 8deg;
+  }
+  .desk-pile .b2 {
+    left: 20px;
+    top: 0;
+    rotate: -3deg;
+  }
+  .desk-tag {
+    max-width: 200px;
+    font: 650 11px/1.3 var(--ewo-sans);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--on-cloth-2);
+    text-align: center;
+  }
+  .desk-tag b {
+    color: var(--on-cloth);
+    font-weight: 650;
+  }
+  .desk-peek {
+    position: absolute;
+    z-index: 20;
+    bottom: calc(100% + 8px);
+    right: -12px;
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 14px;
+    background: rgb(18 11 7 / 0.84);
+    box-shadow: 0 18px 30px -16px rgb(0 0 0 / 0.9);
+    opacity: 0;
+    translate: 0 6px;
+    pointer-events: none;
+    transition:
+      opacity 0.2s,
+      translate 0.2s;
+  }
+  .desk-peek .c {
+    display: block;
+    width: 62px;
+  }
+  .desk-peek .c.taker {
+    outline: 2px solid var(--gold-hi);
+    outline-offset: 1px;
+    border-radius: 5px;
+  }
+  .desk-last:hover .desk-peek,
+  .desk-last:focus-visible .desk-peek {
+    opacity: 1;
+    translate: 0 0;
   }
   .middle.tappable {
     cursor: pointer;

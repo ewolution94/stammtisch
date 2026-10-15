@@ -13,6 +13,7 @@
   import type { Room } from '../lib/room.svelte';
   import { seatSpots, twist } from '../lib/table';
   import { prefs } from '../lib/prefs.svelte';
+  import { screen, tableScale } from '../lib/desk.svelte';
   import { actAt } from '../lib/waits';
   import { askTilt } from '../lib/tilt';
   import Card from './Card.svelte';
@@ -23,6 +24,7 @@
   import SeatChip from './SeatChip.svelte';
   import RailSeats from './RailSeats.svelte';
   import SeatBoard from './SeatBoard.svelte';
+  import DeskTable from './DeskTable.svelte';
   import Settings from './Settings.svelte';
   import TableTop from './TableTop.svelte';
 
@@ -43,6 +45,8 @@
   let clothW = $state(360);
   let clothH = $state(480);
   const spots = $derived(seatSpots(others, mine, n, clothW, clothH));
+  // The desktop table (DeskTable.svelte, from 1100 × 740 up) and its size.
+  const scale = $derived(tableScale());
   const moves = $derived(deal?.moves ?? []);
   const defending = $derived(Boolean(deal && mine === deal.defender));
   /** Every card you may lay now: attack, throw in, beat, pass on. */
@@ -164,8 +168,107 @@
   />
 {/snippet}
 
-<div class="table">
+{#snippet bar()}
   <TableTop {game} title={t('game_durak')} {sub} {dealNo} onsheet={() => (sheetOpen = true)} onsettings={() => (settingsOpen = true)} />
+{/snippet}
+
+{#snippet stockOf()}
+  <div class="stock" aria-label={t('durakStock', { n: deal?.stock ?? 0 })}>
+    {#if deal && (deal.stock > 0 || deal.trumpCard)}
+      <span class="trumpcard" class:last={deal.stock <= 1}><Card id={deal.trumpCard} /></span>
+      {#if deal.stock > 1}<span class="back"><Card back /></span>{/if}
+      <span class="count">{deal.stock}</span>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet boutOf()}
+  <div class="bout" class:ending class:took={ending && deal?.lastBout?.took}>
+    {#each pairs as pair, i (i)}
+      <div class="pair">
+        <span class="atk" style:rotate="{twist(pair.attack, i)}deg"><Card id={pair.attack} /></span>
+        {#if pair.defense}<span class="def" style:rotate="{Number(twist(pair.defense, i + 7)) + 14}deg"><Card id={pair.defense} /></span>{/if}
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet notice()}
+  {#if error}
+    <p class="toast" role="alert">{error}</p>
+  {:else if status && !choosing}
+    <p class="status" class:mine={myTurn || can('attack')} aria-live="polite">{status}</p>
+  {/if}
+{/snippet}
+
+{#snippet choosingPanel()}
+  {#if choosing}
+    <div class="panel sheet">
+      <span class="label">{t('durakBeatOrPass')}</span>
+      <div class="pair2">
+        <button class="btn primary" type="button" onclick={() => { const c = choosing!; choosing = null; void lay(c).catch(() => {}); }}>{t('durakBeat')}</button>
+        <button class="btn" type="button" onclick={() => { const c = choosing!; choosing = null; void move({ type: 'transfer', card: c }).catch(() => {}); }}>{t('durakPassOn')}</button>
+      </div>
+      <button class="btn ghost small" type="button" onclick={() => (choosing = null)}>{t('back')}</button>
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet actions()}
+  <div class="actions">
+    {#if can('take')}<button class="btn paper small" type="button" onclick={(e) => void move({ type: 'take' }, e).catch(() => {})}>{t('durakTake')}</button>{/if}
+    {#if can('pass')}<button class="btn paper small" type="button" onclick={(e) => void move({ type: 'pass' }, e).catch(() => {})}>{t('durakDone')}</button>{/if}
+  </div>
+{/snippet}
+
+{#snippet handOf(flat: boolean, hotkeys: boolean, size: number)}
+  <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
+  {#if mine >= 0}
+    <Hand
+      cards={deal?.hand ?? []}
+      {legal}
+      canPlay={legal.length > 0}
+      onplay={(card) => lay(card)}
+      target={() => null}
+      oninspect={inspect}
+      onrefuse={refused}
+      intercept={(card) => (both(card) ? ((choosing = card), true) : false)}
+      {flat}
+      {hotkeys}
+      scale={size}
+    />
+  {:else}
+    <p class="watching">{t('watchingGame')}</p>
+  {/if}
+{/snippet}
+
+{#if screen.desk}
+  <DeskTable {n} {mine} {home} {others} {onBoard} {scale} held={(seat) => deal?.counts[seat] ?? 0} max={9} top={bar}>
+    {#snippet chip(seat, shape)}{@render chipOf(seat, shape === 'board' ? 'board' : '')}{/snippet}
+    {#snippet left()}<div class="desk-stock">{@render stockOf()}</div>{/snippet}
+    {#snippet middle()}<div class="middle big">{@render boutOf()}</div>{/snippet}
+    {#snippet right()}
+      <!-- What went off ("bito"), face down: everyone saw it go. -->
+      {#if deal && deal.discard > 0}
+        <div class="desk-off" aria-label={t('durakOff', { n: deal.discard })}>
+          <span class="offpile">
+            <span class="back b1"><Card back /></span>
+            <span class="back b2"><Card back /></span>
+          </span>
+          <span class="desk-tag">{t('durakOffTag', { n: deal.discard })}</span>
+        </div>
+      {/if}
+    {/snippet}
+    {#snippet float()}
+      {@render notice()}
+      {@render choosingPanel()}
+    {/snippet}
+    {#snippet beside()}{@render actions()}{/snippet}
+    {#snippet hand()}{@render handOf(prefs.hand === 'flat', true, scale)}{/snippet}
+  </DeskTable>
+{:else}
+<div class="table">
+  {@render bar()}
 
   {#if onBoard}
     <SeatBoard order={[...others, home]}>{#snippet chip(seat)}{@render chipOf(seat, 'board')}{/snippet}</SeatBoard>
@@ -179,72 +282,30 @@
     {/if}
 
     <div class="middle">
-      <div class="stock" aria-label={t('durakStock', { n: deal?.stock ?? 0 })}>
-        {#if deal && (deal.stock > 0 || deal.trumpCard)}
-          <span class="trumpcard" class:last={deal.stock <= 1}><Card id={deal.trumpCard} /></span>
-          {#if deal.stock > 1}<span class="back"><Card back /></span>{/if}
-          <span class="count">{deal.stock}</span>
-        {/if}
-      </div>
-      <div class="bout" class:ending class:took={ending && deal?.lastBout?.took}>
-        {#each pairs as pair, i (i)}
-          <div class="pair">
-            <span class="atk" style:rotate="{twist(pair.attack, i)}deg"><Card id={pair.attack} /></span>
-            {#if pair.defense}<span class="def" style:rotate="{Number(twist(pair.defense, i + 7)) + 14}deg"><Card id={pair.defense} /></span>{/if}
-          </div>
-        {/each}
-      </div>
+      {@render stockOf()}
+      {@render boutOf()}
     </div>
   </div>
 
   <div class="dock" class:bare={onBoard}>
-    {#if error}
-      <p class="toast" role="alert">{error}</p>
-    {:else if status && !choosing}
-      <p class="status" class:mine={myTurn || can('attack')} aria-live="polite">{status}</p>
-    {/if}
+    {@render notice()}
 
-    {#if choosing}
-      <div class="panel sheet">
-        <span class="label">{t('durakBeatOrPass')}</span>
-        <div class="pair2">
-          <button class="btn primary" type="button" onclick={() => { const c = choosing!; choosing = null; void lay(c).catch(() => {}); }}>{t('durakBeat')}</button>
-          <button class="btn" type="button" onclick={() => { const c = choosing!; choosing = null; void move({ type: 'transfer', card: c }).catch(() => {}); }}>{t('durakPassOn')}</button>
-        </div>
-        <button class="btn ghost small" type="button" onclick={() => (choosing = null)}>{t('back')}</button>
-      </div>
-    {/if}
+    {@render choosingPanel()}
 
-    <div class="actions">
-      {#if can('take')}<button class="btn paper small" type="button" onclick={(e) => void move({ type: 'take' }, e).catch(() => {})}>{t('durakTake')}</button>{/if}
-      {#if can('pass')}<button class="btn paper small" type="button" onclick={(e) => void move({ type: 'pass' }, e).catch(() => {})}>{t('durakDone')}</button>{/if}
-    </div>
+    {@render actions()}
 
     <div class="mine">
       {#if !onBoard && n > 0}{@render chipOf(home, '')}{/if}
     </div>
 
-    <!-- Between deals the hand is empty but keeps its box, so the table doesn't move. -->
-    {#if mine >= 0}
-      <Hand
-        cards={deal?.hand ?? []}
-        {legal}
-        canPlay={legal.length > 0}
-        onplay={(card) => lay(card)}
-        target={() => null}
-        oninspect={inspect}
-        onrefuse={refused}
-        intercept={(card) => (both(card) ? ((choosing = card), true) : false)}
-      />
-    {:else}
-      <p class="watching">{t('watchingGame')}</p>
-    {/if}
+    {@render handOf(false, false, 1)}
   </div>
-
-  {#if game.phase === 'scored'}
-    <DealEnd {room} {view} />
-  {/if}
 </div>
+{/if}
+
+{#if game.phase === 'scored'}
+  <DealEnd {room} {view} />
+{/if}
 
 <Inspect card={inspecting} onclose={() => (inspecting = null)} />
 <ScoreSheet open={sheetOpen} {view} onclose={() => (sheetOpen = false)} />
@@ -325,6 +386,68 @@
     text-align: center;
   }
   /* The bout: up to six attacks, each with the card that beat it laid across. */
+  /* The desktop table: the stock with its trump at the left, the bout in the middle, grown with the
+     table's size (no vw there), what went off at the right. */
+  .desk-stock {
+    display: grid;
+    place-items: center;
+    width: 140px;
+  }
+  .desk-stock .stock {
+    width: 92px;
+    margin-inline-end: 44px;
+  }
+  .desk-stock .trumpcard {
+    translate: 28px 0;
+  }
+  .middle.big {
+    justify-content: center;
+  }
+  .middle.big .pair {
+    width: calc(104px * var(--scale, 1));
+  }
+  .middle.big .bout {
+    gap: calc(28px * var(--scale, 1)) calc(18px * var(--scale, 1));
+    max-width: calc(520px * var(--scale, 1));
+  }
+  .desk-off {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .offpile {
+    position: relative;
+    display: block;
+    width: 110px;
+    height: 120px;
+  }
+  .offpile .back {
+    width: 80px;
+    filter: drop-shadow(0 6px 8px rgb(0 0 0 / 0.45));
+  }
+  .offpile .b1 {
+    left: 14px;
+    top: 6px;
+    rotate: 12deg;
+  }
+  .offpile .b2 {
+    left: 18px;
+    rotate: -6deg;
+  }
+  .desk-tag {
+    font: 650 11px/1.3 var(--ewo-sans);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--on-cloth-2);
+    text-align: center;
+  }
+  :global(.desk-float) .panel {
+    left: 50%;
+    right: auto;
+    width: min(440px, 100%);
+    translate: -50% 0;
+  }
   .bout {
     flex: 1 1 auto;
     display: grid;

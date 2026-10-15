@@ -23,6 +23,7 @@
     n,
     width = $bindable(320),
     height = $bindable(260),
+    cap = undefined,
   }: {
     room: Room;
     trick: Trick;
@@ -32,6 +33,8 @@
     n: number;
     width?: number;
     height?: number;
+    /** The largest a card may be (the desktop table's, at its size). */
+    cap?: number;
   } = $props();
 
   let now = $state(Date.now());
@@ -59,7 +62,7 @@
   const phase = $derived(trickPhase(holdUntil - (now + room.offset)));
   const showLast = $derived(!trick.cards.length && last !== null && phase !== 'gone');
   const shown = $derived(trick.cards.length ? trick.cards : showLast && last ? last.cards : []);
-  const cw = $derived(trickCardWidth(width, height));
+  const cw = $derived(trickCardWidth(width, height, cap));
 
   function place(seat: number) {
     const { dx, dy } = slotOffset(angleOf(seat, mine, n), cw);

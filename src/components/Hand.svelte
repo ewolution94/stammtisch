@@ -9,13 +9,19 @@
   has every card twice); `select` turns the fan into picking several cards (the Skat to put back,
   poverty's three), taps toggle and nothing flies; `intercept` stops a card before it flies (a
   Mau-Mau Unter asks for a wish first); `marked` is a card to point out (the one just drawn).
+
+  On the desktop table the hand can lie flat instead (`flat`, Stichle's): side by side, every card
+  whole, the ones you may play standing a little higher (src/lib/table.ts → flatLayout); with
+  `hotkeys`, 1 to 9 and 0 play the first ten cards (or pick them, when picking), ← and → move through
+  the hand, Enter plays. `scale` is that table's size (deskScale): the cards, the box and the keys
+  grow with it.
 -->
 <script lang="ts">
   import { untrack } from 'svelte';
   import { nameOf } from '../lib/deck';
   import { flying } from '../lib/flight.svelte';
   import { i18n } from '../lib/i18n.svelte';
-  import { idOfKey, rekey } from '../lib/table';
+  import { flatLayout, idOfKey, rekey } from '../lib/table';
   import Card from './Card.svelte';
   import { fanLayout, fanTransform, flightTransform } from '../../vendor/ewo/elements/card-fan.js';
   import { handGestures, type Dragged } from '../../vendor/ewo/elements/card-hand.js';
@@ -33,6 +39,9 @@
     select = null,
     intercept = null,
     marked = null,
+    flat = false,
+    hotkeys = false,
+    scale = 1,
   }: {
     cards: string[];
     /** What may be played now; empty when it's not your move. */
@@ -50,6 +59,12 @@
     /** A card that needs a question before it's played: true stops it (it stays lifted). */
     intercept?: ((card: string) => boolean) | null;
     marked?: string | null;
+    /** Laid out flat, side by side (the desktop table), instead of the fan. */
+    flat?: boolean;
+    /** The number keys, the arrows and Enter play (the desktop table). */
+    hotkeys?: boolean;
+    /** The desktop table's size. */
+    scale?: number;
   } = $props();
 
   const FLY_MS = 380;
@@ -114,16 +129,18 @@
   // The fan from the kit: few cards are held bigger, a full hand shrinks to fit (never below 58 px,
   // for Doppelkopf's twelve) and goes to two rows; a laptop's wider table lets them grow a little.
   const keys = $derived(items.filter((c) => c.key !== air?.key).map((c) => c.key));
-  const sizes = $derived<[number, number, number]>(width > 600 ? [124, 112, 100] : [104, 92, 84]);
+  const sizes = $derived<[number, number, number]>(width > 600 ? [124 * scale, 112 * scale, 100 * scale] : [104, 92, 84]);
   // The hand's box keeps one height all game: the tallest any hand gets at this width (a few cards,
   // held big), with the cards at its foot. A card leaving the hand or one drawn changes their size,
   // never the box, so the table above never moves (Stichle e28b833; the user, 2026-10-13: "it cannot
   // jump").
   const room = $derived(
-    Math.max(...Array.from({ length: 20 }, (_, i) => fanLayout(Array.from({ length: i + 1 }, (_, k) => `${k}`), { width, count: i + 1, sizes, min: 58 }).height)),
+    flat ? 0 : Math.max(...Array.from({ length: 20 }, (_, i) => fanLayout(Array.from({ length: i + 1 }, (_, k) => `${k}`), { width, count: i + 1, sizes, min: 58 }).height)),
   );
   const natural = $derived(fanLayout(keys, { width, count: cards.length, sizes, min: 58 }));
-  const layout = $derived(fanLayout(keys, { width, count: cards.length, sizes, min: 58, top: 22 + room - natural.height }));
+  // Flat, the cards you may play now stand a little higher; the box keeps one height there too.
+  const raise = $derived(flat && canPlay && !select ? new Set(keys.filter((k) => legal.includes(idOf(k)))) : new Set<string>());
+  const layout = $derived(flat ? flatLayout(keys, width, { raise, scale }) : fanLayout(keys, { width, count: cards.length, sizes, min: 58, top: 22 + room - natural.height }));
   const cw = $derived(layout.cw);
   const height = $derived(layout.height);
   const places = $derived(layout.places);
@@ -194,12 +211,45 @@
   function keyboard(e: MouseEvent, key: string) {
     // Taps arrive as pointer events (the kit's gestures); this is Enter or Space on a focused card.
     if (e.detail !== 0) return;
+    tryPlay(key);
+  }
+
+  /** A card chosen from the keyboard: picked when picking, else lifted and played if it may be. */
+  function tryPlay(key: string) {
     if (select) return select.ontoggle(key, idOf(key));
     sel = key;
     if (!canPlay) return;
     if (!legal.includes(idOf(key))) return refuse(key);
     play(key);
   }
+
+  // The keyboard (the desktop table): a number plays that card, the arrows lift the next one, Enter
+  // plays the lifted card. Never while you type, or while a sheet, the guide or a dialog is open.
+  $effect(() => {
+    if (!hotkeys) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      const at = e.target instanceof Element ? e.target : null;
+      if (at?.closest('input, textarea, select, [contenteditable]')) return;
+      if (document.querySelector('ewo-sheet[open], ewo-guide[open], dialog[open], .veil')) return;
+      if (/^[0-9]$/.test(e.key)) {
+        const key = keys[e.key === '0' ? 9 : Number(e.key) - 1];
+        if (!key || air) return;
+        e.preventDefault();
+        tryPlay(key);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (!keys.length || (!canPlay && !select)) return;
+        e.preventDefault();
+        const now = sel ? keys.indexOf(sel) : -1;
+        sel = keys[e.key === 'ArrowRight' ? (now + 1) % keys.length : now <= 0 ? keys.length - 1 : now - 1];
+      } else if (e.key === 'Enter' && sel && (!at || at === document.body)) {
+        e.preventDefault();
+        tryPlay(sel);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 </script>
 
 <div
@@ -208,6 +258,7 @@
   bind:this={box}
   bind:clientWidth={width}
   style:height="{height}px"
+  style:--scale={scale}
   role="group"
   data-press="own"
   aria-label={i18n.lang === 'de' ? 'Deine Karten' : 'Your cards'}
@@ -236,6 +287,13 @@
       <Card id={c.id} />
     </button>
   {/each}
+  {#if hotkeys && flat}
+    <!-- The keys under the first ten cards; gold under the ones you may play (or pick) now. -->
+    {#each keys.slice(0, 10) as key, i (key)}
+      {@const p = places.get(key)}
+      {#if p}<span class="key" class:on={select ? true : canPlay && legal.includes(idOf(key))} style:left="{p.x + cw / 2}px" style:top="{height - 24 * scale}px" aria-hidden="true">{(i + 1) % 10}</span>{/if}
+    {/each}
+  {/if}
 </div>
 
 <style>
@@ -290,6 +348,28 @@
   .slot.air {
     transition: transform 0.38s cubic-bezier(0.16, 0.84, 0.26, 1);
     pointer-events: none;
+  }
+  .key {
+    position: absolute;
+    translate: -50% 0;
+    min-width: calc(12px * var(--scale, 1));
+    padding: calc(3px * var(--scale, 1)) calc(6px * var(--scale, 1));
+    border-radius: calc(4px * var(--scale, 1));
+    font: 600 calc(12px * var(--scale, 1)) / 1 var(--ewo-mono);
+    text-align: center;
+    color: var(--on-cloth-2);
+    opacity: 0.6;
+    transition:
+      background-color 0.2s,
+      color 0.2s,
+      opacity 0.2s,
+      left 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+  }
+  .key.on {
+    background: var(--gold-hi);
+    color: var(--ink);
+    opacity: 1;
   }
   .slot.shake {
     animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);

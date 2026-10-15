@@ -28,3 +28,30 @@ test('the far rail is shared left to right in whatever order play goes round; th
   const sides = forward.filter((s) => s.side);
   assert.ok(sides.every((s) => s.y >= Math.floor(h * 0.28) && s.y <= Math.ceil(h * 0.7)), 'clear of the corner cards');
 });
+
+// The desktop table (Stichle's spread): the flat hand and the table's size.
+const { deskScale, FLAT, flatLayout } = await import('../src/lib/table.ts');
+
+test('the flat hand: whole cards side by side while they fit, then an even overlap; one box height', () => {
+  const few = flatLayout(['a', 'b', 'c'], 1000);
+  assert.equal(few.cw, FLAT.max);
+  assert.equal(few.places.get('b').x - few.places.get('a').x, FLAT.max + FLAT.gap);
+  const many = flatLayout(Array.from({ length: 20 }, (_, i) => `c${i}`), 1000);
+  assert.equal(many.cw, FLAT.min);
+  assert.ok(many.places.get('c1').x - many.places.get('c0').x < FLAT.min);
+  assert.equal(few.height, many.height);
+  const raised = flatLayout(['a', 'b'], 1000, { raise: new Set(['b']) });
+  assert.equal(raised.places.get('a').y - raised.places.get('b').y, FLAT.raise);
+  const big = flatLayout(['a', 'b', 'c'], 2000, { scale: 1.5 });
+  assert.equal(big.cw, FLAT.max * 1.5);
+  assert.equal(big.height, Math.round((FLAT.top + FLAT.max * 1.4 + FLAT.bottom) * 1.5));
+});
+
+test("the desktop table's size: a laptop as it is, a big window bigger, never past the window", () => {
+  assert.equal(deskScale(1440, 820), 1);
+  assert.equal(deskScale(3440, 1320), 1.47);
+  assert.equal(deskScale(1500, 1400), 1);
+  assert.equal(deskScale(5120, 2700), 1.6);
+  assert.equal(deskScale(3440, 1320, '1.25'), 1.25);
+  assert.equal(deskScale(1440, 820, '1.5'), 1.11);
+});

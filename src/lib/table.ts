@@ -128,7 +128,7 @@ export type Spot = { seat: number; side: boolean; narrow: boolean; x: number; y:
  * when there's little room); a side rail's card is narrow, a little below the corners. A card may
  * reach `reach` past the cloth's edge, never off the screen. Positions in px over a cloth `w` × `h`.
  */
-export function seatSpots(others: readonly number[], mine: number, n: number, w: number, h: number, wide = 150, narrowW = 112, reach = 12): Spot[] {
+export function seatSpots(others: readonly number[], mine: number, n: number, w: number, h: number, wide = 150, narrowW = 112, reach = 12, narrowSides = true): Spot[] {
   const raw = others.map((seat) => ({ seat, ...seatSpot(angleOf(seat, mine, n)) }));
   // Left to right, whatever order play goes round in (Mau-Mau's can turn).
   const far = raw.filter((p) => !p.side).sort((a, b) => a.x - b.x);
@@ -140,11 +140,62 @@ export function seatSpots(others: readonly number[], mine: number, n: number, w:
     if (p.side) {
       const x = p.x < 0 ? narrowW / 2 - reach : w - narrowW / 2 + reach;
       const y = Math.min(Math.max(h / 2 + (p.y * h) / 2, h * 0.28), h * 0.7);
-      return { seat: p.seat, side: true, narrow: true, x: Math.round(x), y: Math.round(y), w: narrowW };
+      return { seat: p.seat, side: true, narrow: narrowSides, x: Math.round(x), y: Math.round(y), w: narrowW };
     }
     const i = far.indexOf(p);
     const x = k === 1 ? w / 2 : lo + ((hi - lo) * i) / (k - 1);
     // Over the far rail, a little in from it: clear of the bar above.
     return { seat: p.seat, side: false, narrow: farW < 130, x: Math.round(x), y: 6, w: farW };
   });
+}
+
+// ---- the desktop table (Stichle's spread, the user's pick C; Stammtisch's go 2026-10-15) ----------
+
+/** From this window up the table is laid out for a computer: phones and small windows keep theirs. */
+export const DESK = '(min-width: 1100px) and (min-height: 740px)';
+
+export const FLAT = { max: 132, min: 76, gap: 14, top: 34, bottom: 34, raise: 16, lift: 20 };
+
+/**
+ * The hand laid out flat (the desktop table's default): side by side, every card whole and upright,
+ * as big as the width allows (up to FLAT.max); when even FLAT.min doesn't fit, they overlap evenly.
+ * The cards you may play now (`raise`) stand a little higher. Same shape as the kit's fanLayout, so
+ * its gestures (tap, drag, flick, hold) and flights work unchanged. `boxH` keeps the box one height
+ * whatever the hand: the cards sit at its foot, the number keys under them. `scale` is the table's
+ * size (deskScale): every measure grows with it. From Stichle's src/lib/table.ts.
+ */
+export function flatLayout(cards: string[], width: number, { raise = new Set<string>(), scale = 1, boxH = 0 } = {}) {
+  const m = Object.fromEntries(Object.entries(FLAT).map(([k, v]) => [k, v * scale])) as typeof FLAT;
+  const height = boxH || Math.round(m.top + m.max * 1.4 + m.bottom);
+  const n = cards.length;
+  const usable = Math.max(0, width - 8);
+  let cw = n ? Math.min(m.max, Math.floor((usable - m.gap * (n - 1)) / n)) : m.max;
+  let step = cw + m.gap;
+  if (cw < m.min) {
+    cw = Math.round(m.min);
+    step = n > 1 ? (usable - cw) / (n - 1) : 0;
+  }
+  cw = Math.floor(cw);
+  const ch = Math.round(cw * 1.4);
+  const x0 = (width - (cw + step * (n - 1))) / 2;
+  const foot = height - m.bottom - ch;
+  const places = new Map<string, { x: number; y: number; r: number; z: number; row: number }>();
+  cards.forEach((card, i) => places.set(card, { x: x0 + i * step, y: foot - (raise.has(card) ? m.raise : 0), r: 0, z: i + 1, row: 0 }));
+  return { cw, ch, rows: 1 as const, height, lift: Math.round(m.lift), places };
+}
+
+/** The desktop table's size setting: Auto follows the window; the others hold one size. */
+export type TableSize = 'auto' | '1' | '1.25' | '1.5';
+export const TABLE_SIZES: TableSize[] = ['auto', '1', '1.25', '1.5'];
+
+/**
+ * How big the desktop table is drawn (Stichle's; the user, 2026-10-14, on a 34" ultrawide). It is
+ * laid out for a window about 1500 × 900; Auto draws a bigger window's table bigger by the same
+ * factor, up to 1.6×, and a laptop keeps it as it is. A fixed size holds whatever the window does,
+ * but never more than the window holds: the table needs 1100 × 740 at its own size.
+ */
+export function deskScale(width: number, height: number, size: TableSize = 'auto') {
+  const want = size === 'auto' ? Math.min(height / 900, width / 1500, 1.6) : Number(size);
+  const fits = Math.min(width / 1100, height / 740);
+  return Math.round(Math.max(1, Math.min(want, fits)) * 100) / 100;
 }
