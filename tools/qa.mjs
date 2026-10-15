@@ -281,6 +281,15 @@ for (const game of GAMES) {
       done.add('mid');
       await snap(host, `${game}-mid`);
     }
+    // The trick in order (TrickOverview): opened with a tap on the stack once a trick lies there, shot, closed.
+    if (steps >= 5 && !done.has('overview') && (await host.page.locator('.middle.tappable').count())) {
+      done.add('overview');
+      await host.page.locator('.middle.tappable').evaluate((el) => el.click());
+      if (!(await host.page.locator('.over .best').count())) problems.push(`${game}: the trick overview shows no winning card`);
+      await snap(host, `${game}-overview`);
+      await host.page.keyboard.press('Escape');
+      if (await host.page.locator('.over').count()) problems.push(`${game}: Escape didn't close the trick overview`);
+    }
     await host.page.waitForTimeout(what === 'wait' ? 400 : 250);
   }
   // The score sheet, then the host ends the game: the final screen.
