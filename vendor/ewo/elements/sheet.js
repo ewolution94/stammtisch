@@ -61,14 +61,20 @@ var u = t`
 
   @keyframes up { from { translate: 0 100%; } }
   @keyframes down { to { translate: 0 100%; } }
-  @keyframes pop { from { opacity: 0; scale: 0.96; } }
+  /* A rise, not a grow (2026-10-15): after a scale-in, Chrome kept the paint it made while scaling
+     whenever the centred dialog sat on a half pixel, and drew segmented tracks 1 px off their pills
+     until something repainted them (Stichle's settings, a DPR-1 screen). */
+  @keyframes pop { from { opacity: 0; translate: 0 10px; } }
   @keyframes unpop { to { opacity: 0; scale: 0.97; } }
   @keyframes fade { from { opacity: 0; } }
 
   /* The sheet is dragged down by the grip or the header (2026-10-07: the 22 px grip alone was hard
      to hit). The grip is 6 px taller and overlaps the header by as much, so nothing below it moves. */
   .grip { display: grid; place-items: center; height: 28px; margin-bottom: -6px; flex: none; touch-action: none; cursor: grab; }
-  .grip span { width: 44px; height: 5px; border-radius: 3px; background: var(--ewo-fill-3); }
+  /* Light mode's grip is as strong as iOS's own grabber (its tertiary label, about 30%): at the 10%
+     of --ewo-fill-3 it all but vanished on a white sheet, and on Clinch's pale team colours
+     (2026-10-19). Dark mode keeps the fill, as the token, so it stays exactly what it was. */
+  .grip span { width: 44px; height: 5px; border-radius: 3px; background: light-dark(rgb(19 19 21 / 0.3), var(--ewo-fill-3)); }
   /* A card from 720px drags nowhere, so no grip. After the rule above: placed with the other 720px
      rules it lost to it, and every desktop sheet showed a grip that did nothing (until 2026-10-07). */
   @media (min-width: 720px) { .grip { display: none; } }
