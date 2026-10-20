@@ -1,3 +1,5 @@
+// Simulated games for Skat: whole deals by bots and by random legal play.
+// Not in CI (the user, 2026-10-20: "rely on simpler (unit) tests there"); run them with `npm run test:sim`.
 // Whole deals of Skat, played by the bots and by random legal play, under every house rule, with the
 // invariants checked after every move: no card lost or made, every bot move legal, the Augen add up
 // to 120 with the Skat, no view shows a card it shouldn't.

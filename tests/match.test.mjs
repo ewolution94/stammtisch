@@ -24,26 +24,6 @@ function fakeDone(match, result, { forced = null } = {}) {
   match.seats = activeSeats(Doko, match);
 }
 
-test('a Mau-Mau match: the deal goes round the table once a round; totals add up; it ends', () => {
-  const randomInt = seeded(3);
-  const m = createMatch(MauMau, { table: 3, rounds: 2, dealer: 1 });
-  const dealers = [];
-  while (!isOver(MauMau, m)) {
-    nextDeal(MauMau, m, randomInt);
-    throws(() => nextDeal(MauMau, m, randomInt), 'playing');
-    dealers.push(m.dealer);
-    playDeal(MauMau, mauBot, m, randomInt);
-    endDeal(MauMau, m);
-  }
-  assert.deepEqual(dealers, [1, 2, 0, 1, 2, 0]);
-  assert.equal(m.history.length, 6);
-  assert.equal(m.totals.reduce((a, b) => a + b, 0), 6, 'a point a deal with the tally');
-  assert.deepEqual(m.totals, [0, 1, 2].map((s) => m.history.filter((r) => r.points[s] === 1).length));
-  assert.ok(leaders(m).every((s) => m.totals[s] === Math.max(...m.totals)));
-  throws(() => nextDeal(MauMau, m, randomInt), 'over');
-  throws(() => endDeal(MauMau, m), 'phase');
-});
-
 test('a match refuses a table the game can’t seat, and silly rounds', () => {
   throws(() => createMatch(MauMau, { table: 1 }), 'table');
   throws(() => createMatch(MauMau, { table: 7 }), 'table');
@@ -53,39 +33,12 @@ test('a match refuses a table the game can’t seat, and silly rounds', () => {
   throws(() => createMatch(MauMau, { table: 3, rules: { hand: 9 } }), 'rules');
 });
 
-test('Doppelkopf with five: the dealer sits out, the dealer’s left begins; the points land on the right seats', () => {
-  const randomInt = seeded(8);
-  const m = createMatch(Doko, { table: 5, dealer: 2 });
-  assert.deepEqual(activeSeats(Doko, m), [3, 4, 0, 1]);
-  const s = nextDeal(Doko, m, randomInt);
-  assert.equal(s.first, 0, 'game seat 0 is table seat 3, the dealer’s left');
-  assert.deepEqual(m.seats, [3, 4, 0, 1]);
-  playDeal(Doko, dokoBot, m, randomInt);
-  const pts = s.result.void ? [0, 0, 0, 0] : s.result.points;
-  const record = endDeal(Doko, m);
-  assert.equal(record.points[2], 0, 'the dealer sat out');
-  assert.deepEqual([3, 4, 0, 1].map((t) => record.points[t]), pts);
-  assert.equal(m.totals.reduce((a, b) => a + b, 0), 0);
-});
-
 test('Doppelkopf with four: everyone plays, the dealer as the game’s last seat', () => {
   const m = createMatch(Doko, { table: 4, dealer: 1 });
   assert.deepEqual(activeSeats(Doko, m), [2, 3, 0, 1]);
   const s = nextDeal(Doko, m, seeded(2));
   assert.equal(s.dealer, 3);
   assert.equal(m.seats[s.dealer], 1);
-});
-
-test('a whole Doppelkopf match of bots: four rounds at four, every deal counted, the totals sum to zero', () => {
-  const randomInt = seeded(21);
-  const m = createMatch(Doko, { table: 4, rounds: 4 });
-  while (!isOver(Doko, m)) {
-    nextDeal(Doko, m, randomInt);
-    playDeal(Doko, dokoBot, m, randomInt);
-    endDeal(Doko, m);
-  }
-  assert.equal(m.counted, 16);
-  assert.equal(m.totals.reduce((a, b) => a + b, 0), 0);
 });
 
 test('a deal thrown in (or poverty nobody takes) is dealt again by the same dealer and doesn’t count', () => {
@@ -195,16 +148,4 @@ test('the Skat list at four: a lost game gives each other player 30, the dealer 
   const record = endDeal(Skat, m);
   assert.deepEqual(record.points, [30, -122, 30, 30]);
   assert.equal(m.totals.reduce((a, b) => a + b, 0), -32);
-});
-
-test('a whole Skat match of bots at three: every deal counted, the totals are the declarers’ results', () => {
-  const randomInt = seeded(31);
-  const m = createMatch(Skat, { table: 3, rounds: 3, rules: { scoring: 'list' } });
-  while (!isOver(Skat, m)) {
-    nextDeal(Skat, m, randomInt);
-    playDeal(Skat, skatBot, m, randomInt);
-    endDeal(Skat, m);
-  }
-  assert.equal(m.counted, 9);
-  assert.equal(m.history.length, 9);
 });

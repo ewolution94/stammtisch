@@ -152,7 +152,8 @@ five in the first bout (on).
 ```bash
 npm install
 npm run dev          # the whole app on one port (6410): the game server runs inside Vite
-npm test             # the engines, the bots, the match and the rooms (node:test)
+npm test             # the unit tests: the engines, the bots, the match and the rooms on fixed deals (CI runs these)
+npm run test:sim     # the simulated games: whole deals and matches by bots and random players (local only)
 npm run check        # svelte-check
 npm run build && npm start -- --port 6411    # the production server with the built page
 node tools/qa.mjs http://localhost:6411      # one person and bots at each game in WebKit, 390 px
@@ -165,9 +166,9 @@ The QA script borrows Playwright from Folio's checkout next door (`../folio/node
 
 This mirrors Stichle, Schätzle, Vollmond, Kritzle and CDNMS:
 
-- `ci.yml` runs the typecheck, the tests and the build, then smoke-tests the production server (page,
-  headers, a Mau-Mau table with a guest and a bot, the deal, the guest's own hand on their stream and
-  no hand on a stream without a player).
+- `ci.yml` runs the typecheck, the unit tests and the build, then smoke-tests the production server
+  (page, headers, a Mau-Mau table with a guest and a bot, the deal, the guest's own hand on their
+  stream and no hand on a stream without a player). The simulated games (`npm run test:sim`) stay local.
 - `docker-publish.yml` gates on `ci.yml`, then pushes `ghcr.io/ewolution94/stammtisch:latest` for
   amd64 and arm64.
 - The shared Watchtower picks the image up. A push to `release` is the whole deploy, and it ends any

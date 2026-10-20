@@ -1,7 +1,7 @@
-// The bots' ranks (server/bots/rank.mjs) in every game: none reads a hand but its own, every rank
-// plays whole deals by the rules, the same position always gives the same move, the apprentice's
-// slips stay small, a temperament leans the way it says, and the four quirks Stichle's session found
-// (2026-10-14) stay fixed.
+// The bots' ranks (server/bots/rank.mjs) on set positions: the ranks each game has, and the four
+// quirks Stichle's session found (2026-10-14) stay fixed. Honesty (no rank reads a hand but its own),
+// whole deals by every rank, the apprentice's slips and the temperament play positions out, so they
+// are in bots.sim.mjs (`npm run test:sim`, not in CI).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -82,86 +82,9 @@ function scramble(game, s, seat, randomInt) {
   return JSON.stringify(M.view(t, seat)) === JSON.stringify(M.view(s, seat)) ? t : null;
 }
 
-for (const game of Object.keys(GAMES)) {
-  test(`${game}: no rank reads a hand but its own (everything hidden shuffled, the same move)`, () => {
-    const randomInt = seeded(7);
-    let checked = 0;
-    for (const s of positions(game, 24, 11)) {
-      const seat = s.turn;
-      for (const level of levelsFor(game)) {
-        const before = GAMES[game].bot(s, seat, { level });
-        for (let k = 0; k < 2; k++) {
-          const t = scramble(game, s, seat, randomInt);
-          if (!t) continue;
-          assert.deepEqual(GAMES[game].bot(t, seat, { level }), before, `${level} at ${game}, ${s.phase}`);
-          checked += 1;
-        }
-      }
-    }
-    assert.ok(checked >= 30, `only ${checked} positions checked`);
-  });
-
-  test(`${game}: every rank plays whole deals by the rules, and a position always gives the same move`, () => {
-    const M = GAMES[game].module;
-    const randomInt = seeded(3);
-    const ranks = levelsFor(game);
-    for (let d = 0; d < 6; d++) {
-      const s = dealOf(game, RULES[game][d % RULES[game].length], d % PLAYERS[game], randomInt);
-      for (let steps = 0; s.phase !== 'done'; steps++) {
-        assert.ok(steps < 3000, 'the deal ends');
-        const seat = s.turn;
-        const level = ranks[(seat + d) % ranks.length];
-        const move = GAMES[game].bot(s, seat, { level, temper: ['cautious', 'steady', 'bold'][seat % 3] });
-        if (steps % 7 === 0) assert.deepEqual(GAMES[game].bot(s, seat, { level, temper: ['cautious', 'steady', 'bold'][seat % 3] }), move, 'repeatable');
-        M.act(s, seat, move, { randomInt });
-      }
-    }
-  });
-}
-
 test('the ranks: three, and Mau-Mau two', () => {
   assert.deepEqual(levelsFor('doppelkopf'), LEVELS);
   assert.deepEqual(levelsFor('maumau'), ['apprentice', 'journeyman']);
-});
-
-test("an apprentice's slips stay small: at most every other card, the same job done, never a fox, a Dulle or a ♣Q", async () => {
-  const { trickWinner } = await import('../server/core/tricks.mjs');
-  const { rankingFor, rulesCard } = await import('../server/bots/doppelkopf.mjs');
-  const M = GAMES.doppelkopf.module;
-  let differ = 0, follows = 0;
-  for (const s of positions('doppelkopf', 60, 5)) {
-    if (s.phase !== 'play' || !s.trick.cards.length) continue;
-    const seat = s.turn;
-    const a = GAMES.doppelkopf.bot(s, seat, { level: 'apprentice' });
-    if (a.type !== 'play') continue;
-    // The apprentice's own rules (it doesn't count) gave this card; a slip departs from it.
-    const own = rulesCard(s, seat, false);
-    follows += 1;
-    if (a.card === own) continue;
-    differ += 1;
-    const r = rankingFor(s, seat);
-    const last = s.tricks.length + 1 === s.size;
-    const wins = (card) => trickWinner([...s.trick.cards, { seat, card }], r, { last }) === s.trick.cards.length;
-    assert.ok(M.legalCards(s, seat).includes(a.card));
-    assert.equal(wins(a.card), wins(own), `${a.card} for ${own}: the same job`);
-    assert.ok(!['d-A', 'h-10', 'c-Q'].includes(a.card), `slipped a ${a.card}`);
-  }
-  assert.ok(follows >= 15, `only ${follows} positions`);
-  assert.ok(differ <= follows * 0.6, `${differ} of ${follows} differ`);
-});
-
-test('a temperament leans the bid: a bold bot takes on what a cautious one passes', () => {
-  const randomInt = seeded(21);
-  const deck = ['c', 's', 'h', 'd'].flatMap((s) => ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'].map((r) => `${s}-${r}`));
-  let bolder = 0;
-  for (let k = 0; k < 400; k++) {
-    const pool = [...deck];
-    const hand = Array.from({ length: 10 }, () => pool.splice(randomInt(pool.length), 1)[0]);
-    const ok = (lean) => appraise(hand, lean).filter((g) => g.ok).length;
-    assert.ok(ok(1) >= ok(0) && ok(0) >= ok(-1), 'bold ≥ steady ≥ cautious');
-    if (ok(1) > ok(-1)) bolder += 1;
-  }
-  assert.ok(bolder > 20, 'the lean shows');
 });
 
 test('Doppelkopf: an unshown Schweinchen in another hand ranks as a plain ♦A for the bot', async () => {

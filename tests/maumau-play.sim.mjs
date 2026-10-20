@@ -1,3 +1,5 @@
+// Simulated games for Mau-Mau: whole deals by bots and random players, and the bots against random play.
+// Not in CI (the user, 2026-10-20: "rely on simpler (unit) tests there"); run them with `npm run test:sim`.
 // Whole deals of Mau-Mau, played by the bots (and by random legal play), every house rule on and off,
 // with the invariants checked after every move: no card lost or made, every move the bot picks is
 // legal, no view shows a card it shouldn't, every deal ends.

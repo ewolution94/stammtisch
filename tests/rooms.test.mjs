@@ -78,29 +78,6 @@ test('starting needs the game’s table: Doppelkopf four to six, Skat three or f
   assert.equal(t.pages[0].view.game.id, 'doppelkopf');
 });
 
-for (const [id, people, bots] of [['maumau', 1, 2], ['doppelkopf', 1, 2], ['skat', 1, 1], ['durak', 1, 2]]) {
-  test(`a whole ${id} game of bots and absent humans plays to its end; the totals add up`, () => {
-    const { rooms, clock } = setup(id.length);
-    const t = table(rooms, people, id);
-    for (let i = 0; i < bots; i++) t.act(t.host, 'bot', { add: true });
-    // The quick clock: when a human's 25 s run out, the bot moves for them.
-    t.act(t.host, 'settings', { clock: 'quick' });
-    t.act(t.host, 'start');
-    // The other humans leave the stream (the bot plays for them once they're away); the host's page
-    // stays, so the game isn't left unwatched.
-    for (const p of t.pages.slice(1)) p.close();
-    const watcher = watch(rooms, t.code);
-    const v = playOut(clock, t.pages[0]);
-    assert.equal(v.phase, 'final', `${id} ended`);
-    assert.equal(v.game.ended, 'done');
-    assert.equal(v.game.match.counted, v.game.match.deals);
-    assert.ok(v.game.match.totals.every(Number.isInteger));
-    if (id === 'doppelkopf') assert.equal(v.game.match.totals.reduce((a, b) => a + b, 0), 0, 'Doppelkopf points sum to zero');
-    assert.ok(v.game.match.history.length >= v.game.match.deals);
-    watcher.close();
-  });
-}
-
 test('a human plays through the room: only on their turn, only what the rules allow', () => {
   const { rooms, clock } = setup(3);
   const t = table(rooms, 1, 'maumau');
@@ -143,27 +120,6 @@ test('Doppelkopf with five: the dealer sits the deal out, sees no hand, and can�
   assert.equal(t.pages.filter((p) => p.view.game.seat >= 0).length, 4);
   const who = t.seats[t.pages.indexOf(out)];
   assert.throws(() => t.act(who, 'move', { move: { type: 'reserve', kind: 'healthy' } }), (e) => e.code === 'not-playing');
-});
-
-test('a finished deal: its result waits for everyone’s "next", then the next deal', () => {
-  const { rooms, clock } = setup(11);
-  const t = table(rooms, 1, 'maumau');
-  // Two at the table, once round: two deals. The quick clock plays the humans' moves for them.
-  t.act(t.host, 'settings', { clock: 'quick' });
-  t.act(t.host, 'start');
-  for (let i = 0; i < 20_000 && t.pages[0].view.game.phase === 'deal'; i++) clock.advance(1000);
-  const g = t.pages[0].view.game;
-  assert.equal(g.phase, 'scored');
-  assert.equal(g.last.n, 1);
-  assert.equal(g.match.history.length, 1);
-  assert.ok(g.readyBy > clock.now());
-  t.act(t.seats[0], 'next');
-  assert.equal(t.pages[0].view.game.phase, 'scored', 'still waiting for the other');
-  assert.deepEqual(t.pages[1].view.game.ready, [t.seats[0].player]);
-  t.act(t.seats[1], 'next');
-  assert.equal(t.pages[0].view.game.phase, 'deal');
-  assert.equal(t.pages[0].view.game.match.counted, 1);
-  refused(() => t.act(t.seats[0], 'next'), 'wrong-phase');
 });
 
 test('the host stops a game: the end for everyone; a rematch deals again', () => {
